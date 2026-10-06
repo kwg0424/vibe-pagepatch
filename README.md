@@ -8,7 +8,19 @@
 2. PagePatch **세부 정보** → **사용자 스크립트 허용** 켜기 (JS 규칙에 필요)
 
 ## Claude Code 연결 (선택)
-Node.js 22 이상과 Claude Code(`claude`)가 필요합니다.
+Node.js 22 이상과 Claude Code(`claude`)가 필요합니다. PC 마다 한 번 연결 프로그램을 등록합니다.
+
+**스토어에서 받았으면** (저장소 필요 없음) PowerShell 에 붙여 넣기:
+```powershell
+irm https://raw.githubusercontent.com/kwg0424/vibe-pagepatch/main/bridge/setup.ps1 | iex
+# + 터미널 claude 에서도 PagePatch 도구
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kwg0424/vibe-pagepatch/main/bridge/setup.ps1))) -WithMcp
+# 등록 해제
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kwg0424/vibe-pagepatch/main/bridge/setup.ps1))) -Uninstall
+```
+연결 프로그램은 `%LOCALAPPDATA%\PagePatch\bridge` 에 받습니다. 다시 실행하면 최신으로 바뀝니다.
+
+**이 폴더를 개발자 모드로 로드했으면**:
 ```powershell
 powershell -ExecutionPolicy Bypass -File bridge\install.ps1            # 사이드바 채팅
 powershell -ExecutionPolicy Bypass -File bridge\install.ps1 -WithMcp   # + 터미널 claude 에서도 PagePatch 도구

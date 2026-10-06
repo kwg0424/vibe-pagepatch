@@ -83,7 +83,8 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
                                                                 └─ 터미널 claude ─ mcp.mjs ┘
 ```
 - `bridge/install.ps1` 로 한 번 등록: `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.pagepatch.bridge` (PagePatch 확장 ID 만 허용). `-WithMcp` 면 터미널 claude 에도 MCP 등록
-- 확장 ID 는 manifest 의 `key` 로 고정: `ljpifelibjbpdkjmjpalhegmmpopaakn`
+- 스토어 설치(zip 에 bridge 없음)는 `bridge/setup.ps1` 한 줄 설치(`irm … | iex`): GitHub main 의 bridge 파일을 `%LOCALAPPDATA%\PagePatch\bridge` 로 받아 그 install.ps1 실행. 설정·사이드바의 '설치 필요' 안내에 이 명령을 보여 줌
+- 확장 ID: 개발자 모드는 manifest 의 `key` 로 고정 `ljpifelibjbpdkjmjpalhegmmpopaakn`, 스토어는 `ebpahfbghidgbkmbjhgijokfjmoeccan` (스토어 zip 은 `key` 를 뺌). install.ps1 의 allowed_origins 에 둘 다
 - 호스트는 Edge 가 띄우고 Edge 가 끊으면 끝남. 127.0.0.1 에서 MCP 클라이언트를 받을 때 `bridge.json` 의 토큰 확인, Origin 있는 요청(웹페이지) 거절
 - **사이드바 채팅**: `claude -p --output-format stream-json --include-partial-messages --tools "" --strict-mcp-config --mcp-config <pagepatch> --allowedTools mcp__pagepatch --permission-mode dontAsk --append-system-prompt <SKILL.md>`
   - 파일·명령 도구 없음, PagePatch 도구만. 대화는 `--resume` 으로 이어감. 창마다 대화 보관(session)

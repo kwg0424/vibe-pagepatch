@@ -577,6 +577,7 @@ function message(text, isError) {
 }
 
 // Claude Code
+const BRIDGE_SETUP = "irm https://raw.githubusercontent.com/kwg0424/vibe-pagepatch/main/bridge/setup.ps1 | iex";
 const BRIDGE_STATE = {
   connecting: ["연결하는 중…", ""],
   connected: ["연결됨", "ok"],
@@ -592,7 +593,7 @@ function renderBridge() {
   let [text, kind] = on ? BRIDGE_STATE[st.state] || [st.state, ""] : ["", ""];
   if (on && st.state === "connected") {
     if (st.claude) text += ` · ${st.claude}`;
-    else [text, kind] = ["연결됐지만 Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 install.ps1 을 다시 실행하세요", "error"];
+    else [text, kind] = ["연결됐지만 Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 연결 프로그램 설치 명령을 다시 실행하세요", "error"];
   }
   setDesc($("#bState"), text, kind);
   $("#bInstall").hidden = !on || st.state !== "not-installed";
@@ -740,6 +741,11 @@ $("#bEnabled").onchange = async (e) => {
   await reload();
 };
 $("#bEval").onchange = (e) => send("bridge:config", { patch: { allowEval: e.target.checked } });
+$("#bSetupCmd").textContent = BRIDGE_SETUP;
+$("#bCopySetup").onclick = async () => {
+  await navigator.clipboard.writeText(BRIDGE_SETUP);
+  toast("복사했습니다. PowerShell 에 붙여 넣고 Enter");
+};
 $("#bRetry").onclick = async () => {
   await send("bridge:retry");
   setTimeout(reload, 800);

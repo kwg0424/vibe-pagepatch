@@ -12,7 +12,10 @@ param([switch]$WithMcp, [switch]$Uninstall)
 $ErrorActionPreference = "Stop"
 
 $HostName = "com.pagepatch.bridge"
-$ExtensionIds = @("ljpifelibjbpdkjmjpalhegmmpopaakn") # manifest.json 의 key 로 고정된 ID
+$ExtensionIds = @(
+  "ljpifelibjbpdkjmjpalhegmmpopaakn", # 개발자 모드 (manifest.json 의 key 로 고정된 ID)
+  "ebpahfbghidgbkmbjhgijokfjmoeccan"  # Edge 추가 기능 스토어
+)
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Data = Join-Path $env:LOCALAPPDATA "PagePatch"
 $Manifest = Join-Path $Data "$HostName.json"
@@ -26,11 +29,17 @@ function Write-Utf8($path, $text) {
   [System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))
 }
 
+# 등록 안 된 상태면 claude 가 stderr 에 쓰는데, PowerShell 5.1 은 Stop 일 때 그걸 오류로 멈춘다
+function Remove-Mcp($claudeExe) {
+  $ErrorActionPreference = "Continue"
+  & $claudeExe mcp remove --scope user pagepatch 2>$null | Out-Null
+}
+
 if ($Uninstall) {
   foreach ($k in $RegKeys) { if (Test-Path $k) { Remove-Item $k -Force } }
   foreach ($f in @($Manifest, $Cmd)) { if (Test-Path $f) { Remove-Item $f -Force } }
   $claude = Get-Command claude -ErrorAction SilentlyContinue
-  if ($claude) { & $claude.Source mcp remove --scope user pagepatch 2>$null | Out-Null }
+  if ($claude) { Remove-Mcp $claude.Source }
   Write-Host "PagePatch 연결 프로그램 등록을 해제했습니다. ($Data 의 기록 파일은 남겨 둡니다)"
   exit 0
 }
@@ -72,7 +81,7 @@ Write-Host "  호스트 : $Manifest"
 
 if ($WithMcp) {
   if (-not $claudePath) { throw "claude 가 없어 터미널 등록을 건너뜁니다." }
-  & $claudePath mcp remove --scope user pagepatch 2>$null | Out-Null
+  Remove-Mcp $claudePath
   & $claudePath mcp add --scope user pagepatch -- $node.Source (Join-Path $Here "mcp.mjs")
   Write-Host "터미널 claude 에 pagepatch MCP 서버를 등록했습니다."
 }
