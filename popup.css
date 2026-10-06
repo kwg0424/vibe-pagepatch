@@ -1,0 +1,32 @@
+/* DragOn · StayTab 팝업과 같은 모양 */
+body { width: 320px; padding: 12px; font-size: 13px; line-height: 1.4; }
+header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+header img { width: 20px; height: 20px; }
+.title { flex: 1; font-weight: 700; font-size: 15px; }
+.host { margin: 8px 0 0; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#unlock .row { align-items: center; }
+#uReload { width: 100%; margin-top: 10px; padding: 7px; }
+#list { max-height: 360px; overflow: auto; }
+.row { align-items: flex-start; }
+.row .txt { min-width: 0; flex: 1; }
+.row b { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.row b .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.off b .nm { color: var(--muted); text-decoration: line-through; }
+.row small { font-size: 11px; }
+.row input[type="checkbox"] { margin-top: 1px; }
+.st { display: flex; gap: 5px; align-items: baseline; }
+.st::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--muted); transform: translateY(-1px); }
+.st.ok { color: var(--ok); }
+.st.ok::before { background: var(--ok); }
+.st.wait { color: var(--warn); }
+.st.wait::before { background: var(--warn); }
+.st.err { color: var(--danger); }
+.st.err::before { background: var(--danger); }
+.err { color: var(--danger); }
+
+.empty { color: var(--muted); text-align: center; padding: 18px 0 8px; margin: 0; }
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+.actions button { flex: 1; padding: 7px 8px; }
+.msg { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.msg.error { color: var(--danger); }

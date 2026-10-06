@@ -1,0 +1,150 @@
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+.grow { flex: 1; }
+.mono { font-family: var(--mono); font-size: 13px; }
+
+.top {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); flex: none; background: var(--bg);
+}
+.top strong { font-size: 15px; }
+.top nav { display: flex; gap: 4px; margin-left: 16px; }
+.tab { border: 0; padding: 6px 12px; color: var(--muted); }
+.tab:hover { background: var(--bg-hover); }
+.tab.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
+.banner { margin: 10px 16px 0; flex: none; }
+
+.view { flex: 1; min-height: 0; }
+.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+
+/* ── 규칙 ── */
+#rules { display: flex; }
+#rules[hidden] { display: none; }
+.side { width: 290px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--page); }
+.side-top { padding: 12px; display: flex; gap: 8px; align-items: center; } /* 검색 입력 옆에 추가 버튼 */
+.side-top .input { flex: 1; min-width: 0; }
+.side-top .btn { flex: none; padding: 7px 10px; }
+.side-top .input { background: var(--bg); }
+#ruleList { list-style: none; margin: 0; padding: 0 8px 12px; overflow: auto; flex: 1; }
+#ruleList li { padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+#ruleList li:hover { background: var(--bg-hover); }
+#ruleList li.active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+#ruleList li .txt { min-width: 0; flex: 1; }
+#ruleList li .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ruleList li .ur { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+#ruleList li.off .nm { color: var(--muted); text-decoration: line-through; }
+#ruleList li .kind { font-size: 11px; color: var(--muted); flex: none; }
+
+#noRules { padding: 0 20px; }
+
+.editor { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 14px 16px; gap: 8px; min-height: 0; }
+.placeholder { margin: auto; }
+#form { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+#form[hidden] { display: none; }
+.frow { display: flex; gap: 8px; align-items: center; }
+.frow .name { font-weight: 600; flex: 1; }
+.frow #fUrls { flex: 1; }
+#dirtyMark { white-space: nowrap; }
+.urlinfo { color: var(--muted); font-family: var(--mono); word-break: break-all; min-height: 18px; }
+.urlinfo .bad { color: var(--danger); }
+.opts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 13px; min-height: 30px; }
+.opts select { font-size: 13px; padding: 3px 6px; }
+.grp { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.sep { width: 1px; height: 16px; background: var(--line); }
+
+/* CSS · JS 편집기 좌우 (좁으면 위아래).
+   좌우일 때는 subgrid 로 두 편집기의 줄(제목+옵션 · 편집기 · 안내)을 같이 쓴다
+   → 제목 줄은 둘 중 높은 쪽 높이만큼만, 편집기 시작 높이는 같다 */
+.codes { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto; gap: 4px 12px; margin-top: 4px; }
+.code { min-width: 0; display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+/* 제목(☑ JS · 줄 수) 왼쪽, 옵션은 같은 줄 오른쪽. 좁으면 옵션끼리 줄을 바꾸고 계속 오른쪽 정렬
+   (min-height 를 고정하면 창이 낮을 때 그리드가 이 줄을 줄여 편집기가 옵션을 덮는다 → 내용 높이 그대로) */
+.code-head { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; }
+.code-head > .check, .code-head > .count { flex: none; line-height: 30px; }
+.code-head .opts { flex: 1 1 0; min-width: 0; margin-left: auto; justify-content: flex-end; min-height: 0; }
+.code-head .opts .check { height: 30px; } /* 왼쪽 제목(☑ JS)과 같은 높이에 맞춘다 */
+.count { font-size: 11px; color: var(--muted); font-weight: 400; }
+.ace { min-height: 160px; border: 1px solid var(--line); border-radius: 8px; }
+.hint { min-height: 18px; }
+.code-head .check { gap: 6px; }
+.code.disabled .code-head b { color: var(--muted); text-decoration: line-through; }
+.code.disabled .opts, .code.disabled .ace { opacity: 0.5; } /* 꺼 둔 JS · CSS */
+@media (max-width: 1100px) {
+  .codes { display: flex; flex-direction: column; gap: 12px; }
+  .code { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
+  .ace { flex: 1; }
+}
+
+.history { width: 300px; flex: none; border-left: 1px solid var(--line); padding: 14px; overflow: auto; background: var(--page); }
+.history-head { display: flex; justify-content: space-between; align-items: center; }
+#versions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#versions li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 13px; background: var(--bg); }
+#versions li:hover { border-color: var(--accent); }
+#versions .by { font-size: 11.5px; padding: 1px 6px; border-radius: 10px; background: var(--bg-soft); margin-left: 6px; }
+#versions .by.claude { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* ── 설정 (EdgeMark · StayTab 과 같은 모양) ── */
+.settings { overflow: auto; background: var(--page); }
+.card {
+  max-width: 760px;
+  margin: 32px auto;
+  padding: 24px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.card-head img { width: 40px; height: 40px; }
+h1 { margin: 0; font-size: 20px; }
+h2 { margin: 0 0 10px; font-size: 16px; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.card section + section { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.card section[hidden] + section { margin-top: 0; padding-top: 0; border-top: 0; }
+.card section > .row:not(:has(~ :not([hidden]))) { border-bottom: 0; } /* 보이는 마지막 행은 아래 줄 없음 (섹션 구분선과 겹치지 않게) */
+.state { margin: 0; }
+.url { color: var(--muted); font-size: 13px; word-break: break-all; }
+.desc { margin: 4px 0 12px; color: var(--muted); font-size: 13px; }
+.desc.error { color: var(--danger); }
+.desc.ok { color: var(--ok); }
+.steps { margin: 4px 0 12px; padding-left: 20px; font-size: 13px; }
+pre.code { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; margin: 6px 0; color: var(--text); }
+#btn-edit-connect { margin-left: auto; } /* 접속 정보 변경 · 전환은 오른쪽에 묶음 */
+#form-connect { display: grid; gap: 10px; max-width: 480px; }
+#form-connect[hidden] { display: none; }
+#form-connect label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+#form-connect input { font-weight: 400; background: var(--page); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+#form-connect input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+#form-connect .desc { margin: 0; }
+#importReport ul { margin: 4px 0; padding-left: 18px; }
+#bRetryWrap { margin-bottom: 8px; }
+
+/* ── 우클릭 · 복사 (DragOn 사이트 관리와 같은 모양) ── */
+.u-add { display: flex; gap: 8px; }
+.u-add .input { flex: 1; min-width: 0; }
+.u-toolbar { display: flex; align-items: center; gap: 12px; margin: 20px 0 8px; }
+.u-toolbar .input { width: 220px; }
+.u-toolbar .count { margin-left: auto; font-size: 13px; }
+.u-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.u-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 8px; border-bottom: 1px solid var(--line); }
+.u-table td { padding: 8px; border-bottom: 1px solid var(--line); }
+.u-table .col-host { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u-table .col-check { width: 110px; text-align: center; }
+.u-table .col-del { width: 72px; text-align: right; }
+.u-table .del { padding: 4px 10px; font-size: 12px; color: var(--danger); }
+.u-table .del:hover { border-color: var(--danger); background: transparent; }
+#uEmpty { margin-top: 12px; }
+
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); width: 340px; padding: 18px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
+.buttons.stack { flex-direction: column; }
+.buttons.stack button { justify-content: center; }
+
+@media (max-width: 560px) {
+  .card { margin: 0; border-radius: 0; border: 0; padding: 16px; }
+}
+
+.toast {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 20px; font-size: 13px; z-index: 10;
+}

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PagePatch 설정</title>
+  <link rel="icon" href="icons/icon-32.png">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header class="top">
+    <img src="icons/icon-32.png" alt="" width="22" height="22">
+    <strong>PagePatch</strong>
+    <nav>
+      <button class="tab active" data-view="rules">규칙</button>
+      <button class="tab" data-view="unlock">우클릭 · 복사</button>
+      <button class="tab" data-view="settings">설정</button>
+    </nav>
+  </header>
+
+  <div id="usBanner" class="notice banner" hidden>
+    <b>사용자 스크립트 허용이 꺼져 있습니다.</b> JS 규칙이 실행되지 않습니다.
+    <button class="btn small" data-goto="settings">켜는 방법</button>
+  </div>
+
+  <!-- 규칙 -->
+  <main id="rules" class="view">
+    <aside class="side">
+      <div class="side-top">
+        <input class="input" id="search" placeholder="규칙 검색 (이름·주소·코드)" type="search">
+        <button class="btn primary" id="newRule">+ 새 규칙</button>
+      </div>
+      <ul id="ruleList"></ul>
+      <p id="noRules" class="muted small" hidden>규칙이 없습니다.</p>
+    </aside>
+
+    <section class="editor" id="editor">
+      <div id="placeholder" class="placeholder muted">왼쪽에서 규칙을 고르거나 새로 만드세요.</div>
+
+      <div id="form" hidden>
+        <div class="frow head">
+          <input class="input name" id="fName" placeholder="이름 (예: 네이버 검색)">
+          <span class="muted small" id="dirtyMark"></span>
+          <button class="btn primary" id="save" title="Ctrl+S">저장</button>
+          <button class="btn" id="cancel" title="저장 안 한 변경 버리기">변경 취소</button>
+          <button class="btn" id="historyBtn">기록</button>
+          <button class="btn danger" id="delete">삭제</button>
+        </div>
+
+        <div id="changedNotice" class="notice" hidden>
+          다른 곳(Claude·동기화)에서 이 규칙이 바뀌었습니다. <button class="btn small" id="reloadRule">새 내용 불러오기</button>
+        </div>
+        <div id="ruleError" class="notice error" hidden></div>
+
+        <div class="frow">
+          <input class="input mono" id="fUrls" placeholder="주소 패턴 (쉼표로 여러 개, !로 시작하면 제외, /정규식/) 예: naver.com, *://search.naver.com/*, /youtube\.com\/(watch|shorts)/">
+          <label class="check" title="주소를 변환하지 않고 match pattern 그대로 씁니다"><input type="checkbox" data-flag="strictUrl"> URL 그대로</label>
+        </div>
+        <div class="urlinfo small" id="urlInfo"></div>
+
+        <div class="codes">
+          <div class="code">
+            <div class="code-head"><label class="check" title="끄면 이 규칙의 JS 를 실행하지 않습니다 (코드는 그대로 둠)"><input type="checkbox" data-flag-on="offJS"> <b>JS</b></label> <span class="count" id="jsCount"></span>
+              <div class="opts">
+                <label class="check" title="격리된 환경에서 실행합니다. 끄면 페이지 환경(페이지 변수·함수 사용 가능)"><input type="checkbox" data-flag="isoJS"> 격리 실행</label>
+                <label class="check" title="iframe 안에도 실행합니다 (프레임마다 주소를 따로 검사)"><input type="checkbox" data-flag="deepJS"> 모든 프레임</label>
+                <label class="check" title="유튜브처럼 새로고침 없이 주소만 바뀔 때, 새 주소가 규칙에 맞으면 JS 를 다시 실행합니다. 떠날 때는 PagePatch.onLeave(fn) 이 불립니다"><input type="checkbox" data-flag="spaJS"> SPA 이동 시 다시 실행</label>
+                <select id="fTiming" title="언제 실행할지">
+                  <option value="load">페이지 로드 후 (window.onload)</option>
+                  <option value="end">문서 준비 후 (DOMContentLoaded)</option>
+                  <option value="start">일찍 (document_start)</option>
+                </select>
+              </div>
+            </div>
+            <div class="ace" id="aceJs"></div>
+            <div class="hint muted small" id="codeHint"></div>
+          </div>
+          <div class="code">
+            <div class="code-head"><label class="check" title="끄면 이 규칙의 CSS 를 넣지 않습니다 (코드는 그대로 둠)"><input type="checkbox" data-flag-on="offCSS"> <b>CSS</b></label> <span class="count" id="cssCount"></span>
+              <div class="opts">
+                <label class="check" title="브라우저가 직접 넣어 페이지 스크립트가 지우지 못합니다 (&lt;style&gt; 대신 insertCSS)"><input type="checkbox" data-flag="isoCSS"> 강제 적용</label>
+                <label class="check" title="iframe 안에도 넣습니다"><input type="checkbox" data-flag="deepCSS"> 모든 프레임</label>
+                <label class="check" title="넣을 때 모든 선언 끝에 !important 를 붙입니다 (작성한 CSS 는 그대로)"><input type="checkbox" data-flag="important"> 자동 !important</label>
+              </div>
+            </div>
+            <div class="ace" id="aceCss"></div>
+            <div class="hint muted small" id="cssHint"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="history" id="history" hidden>
+      <div class="history-head"><strong>변경 기록</strong><button class="btn small" id="closeHistory">닫기</button></div>
+      <p class="muted small">이 PC 에 최근 20개 버전을 보관합니다. 고르면 편집기에 불러오고, 저장해야 반영됩니다.</p>
+      <ul id="versions"></ul>
+    </aside>
+  </main>
+
+  <!-- 우클릭 · 복사 허용 (DragOn 사이트 관리와 같음) -->
+  <div id="unlock" class="view settings" hidden>
+    <main class="card">
+      <header class="card-head">
+        <img src="icons/icon-48.png" alt="">
+        <div>
+          <h1>우클릭 · 복사 허용</h1>
+          <p class="sub">사이트별로 우클릭·드래그 선택·복사 차단을 풉니다. 사이트에서 PagePatch 아이콘을 눌러 바로 켤 수도 있습니다.</p>
+        </div>
+      </header>
+
+      <form id="uAddForm" class="u-add" autocomplete="off">
+        <input class="input" id="uAddInput" placeholder="사이트 주소 (예: example.com 또는 https://example.com/page)">
+        <button type="submit" class="accent">추가</button>
+      </form>
+      <p id="uMessage" class="message" hidden></p>
+
+      <div class="u-toolbar">
+        <input class="input" type="search" id="uFilter" placeholder="검색">
+        <span id="uCount" class="count"></span>
+      </div>
+
+      <table class="u-table">
+        <thead>
+          <tr>
+            <th class="col-host">사이트</th>
+            <th class="col-check">우클릭 · 복사</th>
+            <th class="col-check">강력 모드</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="uRows"></tbody>
+      </table>
+      <p id="uEmpty" class="desc" hidden>등록된 사이트가 없습니다. 위에서 추가하거나, 사이트에서 PagePatch 아이콘을 눌러 켜세요.</p>
+      <p class="desc">켠 것은 바로 적용되고, 끈 것은 해당 사이트를 새로고침하면 적용됩니다. 목록은 규칙과 같이 동기화됩니다.</p>
+    </main>
+  </div>
+
+  <!-- 설정 (EdgeMark · StayTab 설정 화면과 같은 모양) -->
+  <div id="settings" class="view settings" hidden>
+    <main class="card">
+      <header class="card-head">
+        <img src="icons/icon-48.png" alt="">
+        <div>
+          <h1>PagePatch 설정</h1>
+          <p class="sub" id="sub"></p>
+        </div>
+      </header>
+
+      <section id="usSection" hidden>
+        <h2>사용자 스크립트</h2>
+        <p class="desc error">꺼져 있어서 JS 규칙이 실행되지 않습니다.</p>
+        <ol class="steps">
+          <li><code>edge://extensions</code> 에서 PagePatch 의 <b>세부 정보</b>를 엽니다.</li>
+          <li><b>사용자 스크립트 허용</b>을 켭니다. (그 항목이 없는 Edge 버전이면 왼쪽 아래 <b>개발자 모드</b>를 켭니다)</li>
+          <li>아래 <b>다시 확인</b>을 누릅니다.</li>
+        </ol>
+        <div class="buttons">
+          <button type="button" id="openExtensions">확장 관리 열기</button>
+          <button type="button" id="recheck" class="accent">다시 확인</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>표시</h2>
+        <label class="row">
+          <span>
+            <b>아이콘에 규칙 수 표시</b>
+            <small>지금 페이지에 적용된 규칙 수를 확장 아이콘에 표시합니다</small>
+          </span>
+          <input type="checkbox" id="badge">
+        </label>
+      </section>
+
+      <section>
+        <h2>Claude Code</h2>
+        <label class="row">
+          <span>
+            <b>Claude Code 연결 사용</b>
+            <small>팝업의 'Claude 와 고치기'를 누르면 오른쪽 사이드바에서 Claude 와 대화하며 지금 페이지를 고칩니다</small>
+          </span>
+          <input type="checkbox" id="bEnabled">
+        </label>
+        <p class="desc" id="bState" hidden></p>
+        <div id="bInstall" class="desc" hidden>
+          처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다 (Node.js 22 이상, Claude Code 필요). PowerShell 에서:
+          <pre class="code">powershell -ExecutionPolicy Bypass -File "&lt;PagePatch 폴더&gt;\bridge\install.ps1"</pre>
+          등록한 뒤 <b>다시 확인</b>을 누르세요. 터미널 <code>claude</code> 에서도 쓰려면 끝에 <code>-WithMcp</code> 를 붙입니다.
+        </div>
+        <div class="buttons" id="bRetryWrap" hidden><button type="button" id="bRetry">다시 확인</button></div>
+        <label class="row" id="bEvalRow" hidden>
+          <span>
+            <b>페이지에서 JS 실행 허용</b>
+            <small>Claude 가 페이지에서 JS 를 실행하고 결과를 볼 수 있습니다 (page_eval)</small>
+          </span>
+          <input type="checkbox" id="bEval">
+        </label>
+      </section>
+
+      <section id="storage">
+        <h2>동기화</h2>
+
+        <div id="storage-browser" hidden>
+          <p class="state"><b>브라우저 계정 동기화</b> (기본)</p>
+          <p class="desc">Edge에 로그인하고 확장 동기화를 켜 두면 같은 계정의 다른 PC와 공유됩니다. 외부 서버와 통신하지 않습니다.</p>
+          <p class="desc" id="browser-state"></p>
+          <div class="buttons">
+            <button type="button" id="btn-sync-browser" class="accent">동기화</button>
+            <button type="button" id="btn-open-connect">서버(WebDAV) 동기화 연결</button>
+          </div>
+        </div>
+
+        <div id="storage-server" hidden>
+          <p class="state"><b>서버(WebDAV) 동기화</b> <span id="server-url" class="url"></span></p>
+          <p class="desc" id="server-state"></p>
+          <div class="buttons">
+            <button type="button" id="btn-sync" class="accent">동기화</button>
+            <button type="button" id="btn-edit-connect">접속 정보 변경</button>
+            <button type="button" id="btn-disconnect" class="danger">브라우저 동기화로 전환</button>
+          </div>
+        </div>
+
+        <form id="form-connect" autocomplete="off" hidden>
+          <label>WebDAV 폴더 주소<input name="url" type="url" required placeholder="https://my-server/folder"></label>
+          <label>아이디<input name="username" required></label>
+          <label>비밀번호<input name="password" type="password"></label>
+          <p class="desc">규칙은 이 폴더 아래 계정별 파일로 저장되고, 아이디·비밀번호로 암호화됩니다. 다른 PC에서도 같은 주소와 아이디·비밀번호를 넣으면 같은 규칙을 씁니다. 저장된 비밀번호는 다시 표시하지 않습니다.</p>
+          <div class="buttons">
+            <button type="submit" class="accent">연결 및 동기화</button>
+            <button type="button" id="connect-cancel">취소</button>
+          </div>
+        </form>
+        <p id="storage-message" class="message" hidden></p>
+      </section>
+
+      <section>
+        <h2>데이터</h2>
+        <div class="buttons">
+          <button type="button" id="export">내보내기 (JSON)</button>
+          <button type="button" id="importBtn" title="PagePatch 내보내기 파일, User JavaScript and CSS 데이터">가져오기</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+        </div>
+        <div id="importReport" class="desc" hidden></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 연결할 때 서버에 다른 규칙이 있으면 -->
+  <dialog id="conflict">
+    <p>서버에 이 기기와 다른 규칙이 있습니다.
+어떻게 할까요?</p>
+    <div class="buttons stack">
+      <button value="merge" class="accent">합치기 (규칙마다 최근에 고친 쪽)</button>
+      <button value="remote">서버 규칙으로 덮어쓰기</button>
+      <button value="local">이 기기 규칙을 서버에 올리기</button>
+      <button value="">취소</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="vendor/ace/ace.js"></script>
+  <script src="vendor/ace/ext-language_tools.js"></script>
+  <script src="vendor/ace/ext-searchbox.js"></script>
+  <script src="options.js" type="module"></script>
+</body>
+</html>
