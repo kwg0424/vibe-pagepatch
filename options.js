@@ -1,7 +1,8 @@
 // 설정 화면: 규칙 목록·편집기(Ace) / 설정(사용자 스크립트, Claude Code, 동기화, 표시, 데이터).
 // 저장은 모두 background 에 부탁한다 (쓰기는 한 곳에서).
 import { parseUrls } from "./src/urls.js";
-import { FLAGS, NEW_RULE_FLAGS } from "./src/model.js";
+import { FLAGS, NEW_RULE_FLAGS, normalizeUrl } from "./src/model.js";
+import { variants } from "./src/jump.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -37,6 +38,7 @@ function ago(t) {
 function showView(view) {
   for (const b of $$(".tab")) b.classList.toggle("active", b.dataset.view === view);
   $("#rules").hidden = view !== "rules";
+  $("#jump").hidden = view !== "jump";
   $("#unlock").hidden = view !== "unlock";
   $("#settings").hidden = view !== "settings";
   if (view === "rules") editor.resize();
@@ -313,7 +315,7 @@ function renderList() {
     const kind = document.createElement("span");
     kind.className = "kind";
     // 따로 꺼 둔 쪽은 줄을 긋는다
-    for (const [k, on] of [["CSS", r.css.trim() && !r.flags.offCSS], ["JS", r.js.trim() && !r.flags.offJS]]) {
+    for (const [k, on] of [["JS", r.js.trim() && !r.flags.offJS], ["CSS", r.css.trim() && !r.flags.offCSS]]) {
       if (!r[k.toLowerCase()].trim()) continue;
       if (kind.childNodes.length) kind.append("·");
       const s = document.createElement(on ? "span" : "s");
@@ -336,7 +338,7 @@ function renderList() {
 }
 $("#search").addEventListener("input", renderList);
 
-// ── 우클릭 · 복사 (DragOn 사이트 관리와 같음) ──
+// ── 우클릭 해제 (사이트 목록) ──
 
 function uMessage(text, isError) {
   const m = $("#uMessage");
@@ -410,6 +412,153 @@ $("#uAddForm").onsubmit = async (e) => {
 };
 $("#uFilter").addEventListener("input", renderSites);
 
+// ── 검색 이동 (StayTab 의 주소창 키워드) ──
+// 저장은 키워드마다 (키워드 → 주소). 화면에서는 주소별로 묶어 보여 주고, 주소 하나에 키워드를 쉼표로 여러 개 넣는다.
+// 키워드는 background 가 띄어쓰기를 지워 저장한다 ("구글 지도" → "구글지도")
+
+let jEditing = null; // 행을 눌러 고치는 중인 주소
+
+function jMessage(text, isError) {
+  const m = $("#jMessage");
+  m.textContent = text || "";
+  m.classList.toggle("error", !!isError);
+  m.hidden = !text;
+}
+
+// [[주소, [키워드…]]], 주소 순
+function jumpGroups() {
+  const by = {};
+  for (const j of data.jumps) (by[j.url] ||= []).push(j.id);
+  return Object.entries(by)
+    .map(([url, list]) => [url, list.sort((a, b) => a.localeCompare(b, "ko"))])
+    .sort(([a], [b]) => a.localeCompare(b));
+}
+
+function setJumpEditing(url, keywords) {
+  jEditing = url;
+  $("#jUrl").value = url || "";
+  $("#jKeywords").value = keywords ? keywords.join(", ") : "";
+  $("#jSubmit").textContent = url ? "저장" : "추가";
+  $("#jCancel").hidden = !url;
+  renderJumps();
+}
+
+function renderJumps() {
+  const groups = jumpGroups();
+  const rows = groups.map(([url, keywords]) => {
+    const tr = document.createElement("tr");
+    tr.title = "눌러서 수정";
+    tr.classList.toggle("editing", url === jEditing);
+    tr.onclick = () => {
+      setJumpEditing(url, keywords);
+      $("#jKeywords").focus();
+    };
+    const tdUrl = document.createElement("td");
+    tdUrl.textContent = url;
+    const tdKw = document.createElement("td");
+    tdKw.className = "col-kw";
+    // 등록한 키워드, 그 뒤에 한/영 전환 없이 친 모양을 회색으로 (지도, wleh)
+    const auto = [...new Set(keywords.flatMap(variants))].filter((v) => !keywords.includes(v));
+    tdKw.textContent = keywords.join(", ");
+    if (auto.length) {
+      const span = document.createElement("span");
+      span.className = "auto";
+      span.title = "한/영 전환 없이 쳐도 됨 (자동)";
+      span.textContent = `, ${auto.join(", ")}`;
+      tdKw.append(span);
+    }
+    const tdDel = document.createElement("td");
+    tdDel.className = "col-del";
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "삭제";
+    del.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm(`${url}\n키워드 ${keywords.join(", ")} 를 삭제할까요?`)) return;
+      data.jumps = (await send("jump:delete", { url })).jumps;
+      if (url === jEditing) setJumpEditing(null);
+      else renderJumps();
+    };
+    tdDel.append(del);
+    tr.append(tdUrl, tdKw, tdDel);
+    return tr;
+  });
+  $("#jRows").replaceChildren(...rows);
+  $("#jEmpty").hidden = groups.length > 0;
+}
+
+$("#jForm").onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const res = await send("jump:save", { url: $("#jUrl").value, keywords: $("#jKeywords").value, oldUrl: jEditing });
+    data.jumps = res.jumps;
+    jMessage(`${jEditing ? "저장했습니다" : "추가했습니다"}${res.moved.length ? ` (${res.moved.join(", ")} 는 다른 주소에서 옮겨 옴)` : ""}`);
+    setJumpEditing(null);
+    $("#jUrl").focus();
+  } catch (err) {
+    jMessage(err.message, true);
+  }
+};
+$("#jCancel").onclick = () => {
+  jMessage("");
+  setJumpEditing(null);
+};
+
+// ── 브라우저 (StayTab 의 기본 설정) ──
+// 백그라운드 상주 = 선택 권한 "background" (이 PC에만). 체크박스는 권한이 있는지 그대로 보여 준다.
+// 권한 요청은 클릭(사용자 동작) 안에서 바로 해야 한다. 경고 없는 권한이라 확인 창 없이 허용된다
+const BG = { permissions: ["background"] };
+
+function browserMessage(text, isError) {
+  const m = $("#browserMessage");
+  m.textContent = text || "";
+  m.classList.toggle("error", !!isError);
+  m.hidden = !text;
+}
+
+// 탭 복원은 상주 중에만 동작하므로 상주가 꺼져 있으면 흐리게
+function showKeepAlive(on) {
+  $("#keepAlive").checked = on;
+  $("#restore").disabled = !on;
+  $("#rowRestore").classList.toggle("off", !on);
+}
+
+$("#keepAlive").onchange = async (e) => {
+  const on = e.target.checked;
+  const ok = on ? await chrome.permissions.request(BG) : await chrome.permissions.remove(BG);
+  showKeepAlive(ok ? on : !on);
+};
+
+function renderBrowser() {
+  $("#restore").checked = data.settings.restore;
+  $("#newtabOn").checked = data.settings.newtab.on;
+  if (document.activeElement !== $("#newtabUrl")) $("#newtabUrl").value = data.settings.newtab.url;
+}
+
+$("#restore").onchange = (e) => send("settings", { patch: { restore: e.target.checked } });
+
+$("#newtabOn").onchange = async (e) => {
+  const on = e.target.checked;
+  if (on && !normalizeUrl($("#newtabUrl").value)) {
+    browserMessage("먼저 주소를 입력하세요", true);
+    $("#newtabUrl").focus();
+  } else browserMessage("");
+  await send("settings", { patch: { newtab: { ...data.settings.newtab, on } } });
+};
+
+$("#newtabForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const raw = $("#newtabUrl").value.trim();
+  const url = raw ? normalizeUrl(raw) : "";
+  if (url === null) return browserMessage("올바른 주소가 아닙니다", true);
+  $("#newtabUrl").value = url;
+  // 주소를 넣으면 새 탭 주소도 켠다, 지우면 끈다
+  await send("settings", { patch: { newtab: { on: !!url, url } } });
+  browserMessage(url ? "저장했습니다. 새 탭이 이 주소로 열립니다" : "주소를 지워 새 탭 주소를 껐습니다");
+};
+
+chrome.permissions.contains(BG).then(showKeepAlive); // 첫 화면을 기다리게 하지 않는다
+
 // ── 설정 ──
 
 const timeText = (t) => new Date(t).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -452,7 +601,7 @@ function renderBridge() {
   renderHints();
 }
 
-// 동기화 (EdgeMark · StayTab · DragOn 과 같은 화면)
+// 동기화 (EdgeMark · StayTab 과 같은 화면)
 let connectOpen = false;
 let busy = false;
 let lastRunEnd = 0;
@@ -566,6 +715,7 @@ function renderSettings() {
   $("#usSection").hidden = data.userScripts;
   $("#usBanner").hidden = data.userScripts;
   $("#badge").checked = !data.settings.hideBadge;
+  renderBrowser();
   renderBridge();
   renderStorage();
 }
@@ -620,7 +770,7 @@ $("#importFile").onchange = async (e) => {
     const { report } = await send("import", { json });
     const p = document.createElement("div");
     p.className = "desc ok";
-    p.textContent = `규칙 ${report.count}개를 가져왔습니다.`;
+    p.textContent = `규칙 ${report.count}개${report.jumps ? `, 검색 이동 키워드 ${report.jumps}개` : ""}를 가져왔습니다.`;
     box.append(p);
     if (report.warnings?.length) {
       const ul = document.createElement("ul");
@@ -644,12 +794,13 @@ async function reload() {
   data = await send("state");
   renderList();
   renderSites();
+  renderJumps();
   renderSettings();
 }
 
 function route() {
   const hash = decodeURIComponent(location.hash.slice(1));
-  if (hash === "settings" || hash === "unlock") return showView(hash);
+  if (hash === "settings" || hash === "unlock" || hash === "jump") return showView(hash);
   showView("rules");
   if (hash.startsWith("rule=")) {
     const r = data.rules.find((x) => x.id === hash.slice(5));
@@ -671,7 +822,7 @@ window.addEventListener("hashchange", route);
 
 // 다른 곳(사이드바의 Claude, 동기화, 팝업)에서 바뀐 것을 반영
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area === "local" && (changes.rules || changes.settings || changes.syncStatus || changes.bridge || changes.syncConfig)) {
+  if (area === "local" && (changes.rules || changes.jumps || changes.settings || changes.syncStatus || changes.bridge || changes.syncConfig)) {
     if (busy) return;
     if ((changes.syncStatus || changes.syncConfig) && Date.now() - lastRunEnd > 1500) message("");
     await reload();

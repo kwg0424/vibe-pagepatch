@@ -1,5 +1,5 @@
 // 규칙·설정 저장 (chrome.storage.local). 값을 바꾸는 함수는 background 만 부른다 → serial 로 한 줄로 처리.
-// local: { rules: {id: Rule}, settings, history: {id: [버전…]} }
+// local: { rules: {id: Rule}, jumps: {키워드: Jump}, settings, history: {id: [버전…]} }
 // 변경 기록: 규칙마다 최근 20개 버전 (이 PC 에만, 동기화 안 함). 최신이 앞.
 import { normalizeState, normalizeRule, normalizeSettings, newId, sameContent, NEW_RULE_FLAGS } from "./model.js";
 import { mergeStates, sameState } from "./merge.js";
@@ -14,8 +14,34 @@ export function serial(fn) {
 }
 
 export async function getState() {
-  const { rules, settings } = await chrome.storage.local.get(["rules", "settings"]);
-  return normalizeState({ rules, settings });
+  const { rules, jumps, settings } = await chrome.storage.local.get(["rules", "jumps", "settings"]);
+  return normalizeState({ rules, jumps, settings });
+}
+
+// 검색 이동: 주소 하나에 키워드 여러 개. 키워드는 띄어쓰기를 지워 저장한다 ("구글 지도" → "구글지도").
+// oldUrl: 고치는 중인 주소 → 그 주소에서 뺀 키워드는 지운다. 새로 추가할 때 이미 있는 주소면 키워드를 더한다.
+// keys 는 jumpKey 로 맞춘 것 (background 가 맞춰서 넘긴다) → { moved: [다른 주소에서 옮겨 온 키워드] }
+export function saveJumps(url, keys, oldUrl = null) {
+  return serial(async () => {
+    const { jumps } = await getState();
+    const now = Date.now();
+    const live = (j) => j && !j.deleted;
+    const moved = keys.filter((k) => live(jumps[k]) && jumps[k].url !== url && jumps[k].url !== oldUrl);
+    if (oldUrl) for (const j of Object.values(jumps)) if (live(j) && j.url === oldUrl && !keys.includes(j.id)) jumps[j.id] = { id: j.id, deleted: now, updated: now };
+    for (const k of keys) if (!live(jumps[k]) || jumps[k].url !== url) jumps[k] = { id: k, url, updated: now };
+    await chrome.storage.local.set({ jumps });
+    return { moved };
+  });
+}
+
+// 그 주소의 키워드를 모두 지운다 (다른 기기에 전하려고 삭제 표시를 남긴다)
+export function deleteJumps(url) {
+  return serial(async () => {
+    const { jumps } = await getState();
+    const now = Date.now();
+    for (const j of Object.values(jumps)) if (!j.deleted && j.url === url) jumps[j.id] = { id: j.id, deleted: now, updated: now };
+    await chrome.storage.local.set({ jumps });
+  });
 }
 
 // input: { id?, name?, urls?, js?, css?, flags?: 일부만 } → 바뀐 것만 덮어쓴다. by: "user" | "claude" | "import" | "revert"
@@ -79,7 +105,7 @@ export function mergeIn(incoming, by) {
     const local = await getState();
     const merged = mergeStates(local, incoming);
     if (sameState(merged, local)) return { state: local, changed: false };
-    await chrome.storage.local.set({ rules: merged.rules, settings: merged.settings });
+    await chrome.storage.local.set({ rules: merged.rules, jumps: merged.jumps, settings: merged.settings });
     await addHistory(
       Object.values(merged.rules).filter((r) => !r.deleted && !sameContent(local.rules[r.id], r)),
       by
@@ -92,7 +118,7 @@ export function mergeIn(incoming, by) {
 export function replaceAll(incoming, by) {
   return serial(async () => {
     const local = await getState();
-    const next = { rules: incoming.rules, settings: incoming.settings };
+    const next = { rules: incoming.rules, jumps: incoming.jumps || {}, settings: incoming.settings };
     await chrome.storage.local.set(next);
     await addHistory(
       Object.values(next.rules).filter((r) => !r.deleted && !sameContent(local.rules[r.id], r)),
@@ -102,21 +128,23 @@ export function replaceAll(incoming, by) {
   });
 }
 
-// 서버 연결 때 "이 기기 규칙 올리기": 이 기기 규칙이 이기도록 시각을 지금으로, 서버에만 있는 규칙은 삭제 표시
-export function preferLocal(remoteIds) {
+// 서버 연결 때 "이 기기 규칙 올리기": 이 기기 규칙·키워드가 이기도록 시각을 지금으로, 서버에만 있는 것은 삭제 표시
+export function preferLocal(remote) {
   return serial(async () => {
     const state = await getState();
     const now = Date.now();
-    for (const r of Object.values(state.rules)) r.updated = now;
-    for (const id of remoteIds) if (!state.rules[id]) state.rules[id] = { id, deleted: now, updated: now };
+    for (const kind of ["rules", "jumps"]) {
+      for (const r of Object.values(state[kind])) r.updated = now;
+      for (const id of Object.keys(remote[kind] || {})) if (!state[kind][id]) state[kind][id] = { id, deleted: now, updated: now };
+    }
     state.settings = { ...state.settings, updated: now };
-    await chrome.storage.local.set({ rules: state.rules, settings: state.settings });
+    await chrome.storage.local.set({ rules: state.rules, jumps: state.jumps, settings: state.settings });
   });
 }
 
 // 가져오기: 같은 id 는 가져온 것으로 바꾼다 (updated 가 지금이라 합치기에서 이긴다)
 export function importState(imported) {
-  return mergeIn({ rules: imported.rules, settings: imported.settings || undefined }, "import");
+  return mergeIn({ rules: imported.rules, jumps: imported.jumps || {}, settings: imported.settings || undefined }, "import");
 }
 
 async function addHistory(rules, by) {

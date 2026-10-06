@@ -3,9 +3,11 @@
 //   settings          → 설정
 //   rule:<id>         → 규칙 하나
 //   rule:<id>#<n>     → 8 KB 를 넘는 규칙은 JSON 문자열을 조각으로 나눠 담고, rule:<id> 에는 { id, chunks, updated } 만
+//   jump:<키워드>     → 검색 이동 키워드 하나 (작아서 조각 없음)
 import { normalizeState } from "./model.js";
 
 export const RULE_PREFIX = "rule:";
+export const JUMP_PREFIX = "jump:";
 export const SETTINGS_KEY = "settings";
 export const ITEM_MAX = 8192 - 64;
 export const QUOTA = 102400;
@@ -39,12 +41,18 @@ export function toItems(state) {
     items[key] = { id: r.id, chunks: parts.length, updated: r.updated };
     parts.forEach((p, i) => (items[`${key}#${i}`] = p));
   }
+  for (const j of Object.values(state.jumps || {})) items[JUMP_PREFIX + j.id] = j;
   return items;
 }
 
 export function fromItems(items) {
   const rules = {};
+  const jumps = {};
   for (const [k, v] of Object.entries(items || {})) {
+    if (k.startsWith(JUMP_PREFIX)) {
+      if (v?.id) jumps[v.id] = v;
+      continue;
+    }
     if (!k.startsWith(RULE_PREFIX) || k.includes("#") || !v) continue;
     if (v.chunks) {
       let json = "";
@@ -63,7 +71,7 @@ export function fromItems(items) {
       } catch {}
     } else if (v.id) rules[v.id] = v;
   }
-  return normalizeState({ rules, settings: items?.[SETTINGS_KEY] });
+  return normalizeState({ rules, jumps, settings: items?.[SETTINGS_KEY] });
 }
 
 // 지금 storage.sync 내용 → 원하는 내용 으로 바꾸려면 { set, remove }

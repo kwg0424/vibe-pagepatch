@@ -15,23 +15,20 @@
   <p class="host" id="host" hidden></p>
 
   <main id="main">
-    <!-- 우클릭·복사 허용 (DragOn 팝업과 같음) -->
+    <!-- 우클릭·복사 허용: 두 토글을 한 줄에 좌우로, 설명은 마우스를 올리면 -->
     <div id="unlock" hidden>
-      <label class="row">
-        <span>
+      <div class="u-toggles">
+        <label class="u-toggle" title="우클릭 메뉴, 드래그 선택, 복사를 허용합니다">
           <b>우클릭 · 복사 허용</b>
-          <small>우클릭 메뉴, 드래그 선택, 복사</small>
-        </span>
-        <input type="checkbox" id="uCopy">
-      </label>
-      <label class="row">
-        <span>
+          <input type="checkbox" id="uCopy">
+        </label>
+        <label class="u-toggle" title="기본으로 안 될 때만. 일부 기능이 깨질 수 있음">
           <b>강력 모드</b>
-          <small>기본으로 안 될 때만. 일부 기능이 깨질 수 있음</small>
-        </span>
-        <input type="checkbox" id="uStrong">
-      </label>
+          <input type="checkbox" id="uStrong">
+        </label>
+      </div>
       <button type="button" id="uReload" class="accent" hidden>끄기 적용하려면 새로고침</button>
+      <p id="uMsg" class="msg error" hidden></p>
     </div>
     <div id="list"></div>
     <p id="empty" class="empty" hidden>이 페이지에 적용되는 규칙이 없습니다.</p>

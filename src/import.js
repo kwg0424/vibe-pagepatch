@@ -1,14 +1,15 @@
 // 가져오기: PagePatch 내보내기 파일, 또는 원본 확장(User JavaScript and CSS) 데이터.
 // 원본 데이터 = 저장소 통째 ({ rules: [메타], "r:<id>": { js, scss, css }, libs, settings })
 //   - tools/export-from-original.mjs 로 뽑은 파일, 원본의 'Download JSON' 파일 모두 이 모양
-// → { state: { rules, settings? }, report }
-import { normalizeRule, normalizeSettings, FLAGS } from "./model.js";
+// → { state: { rules, jumps?, settings? }, report }
+import { normalizeRule, normalizeSettings, normalizeJump, FLAGS } from "./model.js";
 import { lineCommentsToBlock } from "./css.js";
 
 export const EXPORT_APP = "PagePatch";
 
 export function exportState(state) {
-  return { app: EXPORT_APP, version: 1, exportedAt: new Date().toISOString(), rules: Object.values(state.rules).filter((r) => !r.deleted), settings: state.settings };
+  const live = (m) => Object.values(m || {}).filter((x) => !x.deleted);
+  return { app: EXPORT_APP, version: 1, exportedAt: new Date().toISOString(), rules: live(state.rules), jumps: live(state.jumps), settings: state.settings };
 }
 
 export function importData(json, now = Date.now()) {
@@ -25,9 +26,14 @@ function importOwn(json, now) {
     const n = normalizeRule({ ...r, updated: r.updated || now });
     if (n && !n.deleted) rules[n.id] = n;
   }
+  const jumps = {};
+  for (const j of json.jumps || []) {
+    const n = normalizeJump({ ...j, updated: now });
+    if (n && !n.deleted) jumps[n.id] = n;
+  }
   return {
-    state: { rules, settings: json.settings ? { ...normalizeSettings(json.settings), updated: now } : null },
-    report: { format: "PagePatch", count: Object.keys(rules).length, warnings: [] },
+    state: { rules, jumps, settings: json.settings ? { ...normalizeSettings(json.settings), updated: now } : null },
+    report: { format: "PagePatch", count: Object.keys(rules).length, jumps: Object.keys(jumps).length, warnings: [] },
   };
 }
 

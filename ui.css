@@ -1,4 +1,4 @@
-/* 팝업·설정·사이드바 공통. TapCode · DragOn · StayTab · EdgeMark 와 같은 색·체크박스·버튼 */
+/* 팝업·설정·사이드바 공통. TapCode · StayTab · EdgeMark 와 같은 색·체크박스·버튼 */
 :root {
   --page: #f6f7f9;
   --bg: #ffffff;
@@ -114,6 +114,9 @@ input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
 /* 설명 붙은 한 줄 (다른 확장과 같음) */
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .row small { display: block; color: var(--muted); font-size: 12px; }
+/* 위 설정이 꺼져 있어 쓸 수 없는 줄 (예: 백그라운드 상주가 꺼지면 탭 복원): 글자도 체크박스처럼 흐리게 */
+.row.off { cursor: default; }
+.row.off > span { opacity: 0.5; }
 
 .notice { padding: 9px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); font-size: 13px; }
 .notice.error { border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }

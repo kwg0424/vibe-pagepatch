@@ -23,9 +23,9 @@ function jsStatus(r) {
   return ["JS 실행 안 됨 (새로고침 필요)", "no"];
 }
 
-// "CSS · JS" (따로 꺼 둔 쪽은 "JS 꺼짐")
+// "JS · CSS" (따로 꺼 둔 쪽은 "JS 꺼짐")
 const codeKinds = (r, sep) =>
-  [r.css.trim() && (r.flags.offCSS ? "CSS 꺼짐" : "CSS"), r.js.trim() && (r.flags.offJS ? "JS 꺼짐" : "JS")].filter(Boolean).join(sep);
+  [r.js.trim() && (r.flags.offJS ? "JS 꺼짐" : "JS"), r.css.trim() && (r.flags.offCSS ? "CSS 꺼짐" : "CSS")].filter(Boolean).join(sep);
 
 function render() {
   const list = $("#list");
@@ -88,9 +88,18 @@ function renderUnlock() {
 }
 for (const [id, mode] of [["#uCopy", "copy"], ["#uStrong", "strong"]]) {
   $(id).onchange = async (e) => {
-    await send("unlock:set", { host: info.unlock.host, mode, value: e.target.checked, tabId: tab.id });
-    info.unlock[mode] = e.target.checked;
-    if (!e.target.checked) $("#uReload").hidden = false;
+    const value = e.target.checked;
+    const res = await send("unlock:set", { host: info.unlock.host, mode, value, tabId: tab.id });
+    // 저장이 안 됐으면 체크를 되돌리고 이유를 보여 준다 (조용히 실패하지 않게)
+    if (!res?.ok) {
+      e.target.checked = !value;
+      $("#uMsg").textContent = res?.error || "저장하지 못했습니다";
+      $("#uMsg").hidden = false;
+      return;
+    }
+    $("#uMsg").hidden = true;
+    info.unlock[mode] = value;
+    if (!value) $("#uReload").hidden = false;
   };
 }
 $("#uReload").onclick = () => {

@@ -2,15 +2,18 @@
 //   - 규칙 저장(유일한 쓰기 담당) → userScripts 등록·탭 CSS·배지 갱신 → 동기화 예약
 //   - 팝업·설정·사이드바 메시지 처리
 //   - Claude Code 연결 유지 (src/bridge.js)
-//   - 우클릭·복사 허용 (DragOn 에서 옮김, src/unlock.js)
-import { getState, saveRule, deleteRule, saveSettings, updateSites, importState, getHistory, revertRule } from "./src/store.js";
+//   - 우클릭·복사 허용 (src/unlock.js)
+//   - 검색 이동 · 탭 복원 · 새 탭 주소 (StayTab 에서 옮김, src/jump.js · src/stay.js · newtab.js)
+import { getState, saveRule, deleteRule, saveSettings, updateSites, importState, getHistory, revertRule, saveJumps, deleteJumps } from "./src/store.js";
 import { applyUnlock, injectUnlock, unlockHost } from "./src/unlock.js";
+import { jumpKey, variants, ruleCandidates, regexRule, filterRule, matchers } from "./src/jump.js";
+import { initStay } from "./src/stay.js";
 import { syncRegistrations, applyTab, applyAllTabs, forgetTab, matchingRules, userScriptsAvailable, spaNavigate, updateRuns, getRuns } from "./src/inject.js";
 import { importData, exportState } from "./src/import.js";
 import { scheduleSync, runSync, syncNow, syncStatusView, connectServer, disconnectServer } from "./src/sync.js";
 import { getBridgeConfig, setBridgeConfig, ensureBridge, attachPanel } from "./src/bridge.js";
 import { initTools } from "./src/tools.js";
-import { liveRules, sortByName, normalizeHost } from "./src/model.js";
+import { liveRules, sortByName, normalizeHost, normalizeUrl, liveJumps } from "./src/model.js";
 import { WARN_BYTES, QUOTA } from "./src/syncitems.js";
 
 // 아이콘의 규칙 수: 브라우저 배지는 글자 위치를 바꿀 수 없어서 아이콘 위에 직접 그린다
@@ -110,6 +113,7 @@ chrome.runtime.onStartup.addListener(() => startup());
 async function startup() {
   chrome.alarms.create("tick", { periodInMinutes: 1 });
   await refresh().catch((e) => console.warn("refresh", e));
+  applyJumps().catch((e) => console.warn("jumps", e)); // 설치·업데이트 때 규칙 다시 올리기
   syncNow().catch(() => {});
 }
 
@@ -129,8 +133,9 @@ chrome.alarms.onAlarm.addListener(async (a) => {
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && (changes.rules || changes.settings)) {
-    scheduleRefresh();
+  if (area === "local" && (changes.rules || changes.settings || changes.jumps)) {
+    if (changes.rules || changes.settings) scheduleRefresh();
+    if (changes.jumps) applyJumpsSoon();
     scheduleSync("browser", 3000);
     scheduleSync("webdav", 5000);
   } else if (area === "sync") {
@@ -138,7 +143,57 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// 우클릭·복사 허용: 페이지 로드가 끝나면 (DragOn 과 같은 시점)
+// ── 검색 이동 (StayTab 의 주소창 키워드) ──
+// 키워드가 바뀌면 리다이렉트 규칙(declarativeNetRequest dynamic rules)을 통째로 다시 올린다. 규칙은 브라우저를 다시 켜도 남는다.
+// 정규식이 커서 브라우저가 받지 않으면(RE2 메모리 한도) 변형마다 나누고, 그래도 크면 urlFilter(띄어쓰기 없는 모양)로 (src/jump.js)
+let jumpTimer;
+function applyJumpsSoon() {
+  clearTimeout(jumpTimer);
+  jumpTimer = setTimeout(() => applyJumps().catch((e) => console.warn("jumps", e)), 200);
+}
+
+const regexOk = async (regex) => (await chrome.declarativeNetRequest.isRegexSupported({ regex, isCaseSensitive: false })).isSupported;
+
+async function applyJumps() {
+  const { jumps } = await getState();
+  jumpMatchers = matchers(jumps);
+  const dnr = chrome.declarativeNetRequest;
+  const maxRegex = dnr.MAX_NUMBER_OF_REGEX_RULES || 1000;
+  const rules = [];
+  let regexCount = 0;
+  const addRegex = (url, regex) => {
+    if (regexCount >= maxRegex) return false;
+    regexCount++;
+    rules.push(regexRule(rules.length + 1, url, regex));
+    return true;
+  };
+  for (const c of ruleCandidates(jumps)) {
+    if ((await regexOk(c.combined)) && addRegex(c.url, c.combined)) continue;
+    for (const e of c.each) {
+      if ((await regexOk(e.regex)) && addRegex(c.url, e.regex)) continue;
+      for (const f of e.filters) rules.push(filterRule(rules.length + 1, c.url, f));
+    }
+  }
+  const max = dnr.MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES || dnr.MAX_NUMBER_OF_DYNAMIC_RULES || 5000;
+  if (rules.length > max) console.warn(`검색 이동 규칙 ${rules.length}개 중 ${max}개만 올립니다 (나머지는 대비책으로)`);
+  const old = await dnr.getDynamicRules();
+  await dnr.updateDynamicRules({ removeRuleIds: old.map((r) => r.id), addRules: rules.slice(0, max) });
+}
+
+// 대비책: 주소창의 "검색 미리 로드" 로 받아 둔 결과를 Enter 때 그대로 보여 주면 규칙(요청 단계)이 적용되지 않는다.
+// 그래서 탭 주소가 키워드 검색 주소로 바뀌면 여기서 한 번 더 옮긴다 (서비스 워커를 깨우므로 규칙보다는 조금 늦다)
+let jumpMatchers = null; // 서비스 워커가 떠 있는 동안 캐시, 키워드가 바뀌면 다시 만든다
+chrome.tabs.onUpdated.addListener(async (tabId, info) => {
+  if (!info.url?.startsWith("https://")) return;
+  jumpMatchers ??= matchers((await getState()).jumps);
+  const hit = jumpMatchers.find((m) => m.re.test(info.url));
+  if (hit) chrome.tabs.update(tabId, { url: hit.url }).catch(() => {});
+});
+
+// ── 탭 복원 (StayTab) ──
+initStay({ getSettings: async () => (await getState()).settings });
+
+// 우클릭·복사 허용: 페이지 로드가 끝나면
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== "complete" || !unlockHost(tab.url)) return;
   applyUnlock(tabId, tab.url, (await getState()).settings);
@@ -222,6 +277,7 @@ const handlers = {
     ]);
     return {
       rules: sortByName(liveRules(state.rules)),
+      jumps: liveJumps(state.jumps),
       settings: state.settings,
       errors: ruleErrors,
       userScripts: userScriptsAvailable(),
@@ -280,11 +336,14 @@ const handlers = {
     if (!["copy", "strong"].includes(mode)) throw new Error("알 수 없는 모드입니다");
     if (value && tabId != null) injectUnlock(tabId, mode);
     const settings = await updateSites((sites) => ({ ...sites, [host]: { ...sites[host], [mode]: !!value } }));
+    // 켰는데 목록에 없으면 저장 못 한 것 (쓸 수 없는 호스트) → 조용히 넘어가지 않고 알린다
+    if (value && !settings.sites[host]?.[mode]) throw new Error(`${host} 은(는) 저장할 수 없는 주소입니다`);
     return { sites: settings.sites };
   },
   async "unlock:add"({ host: input }) {
     const host = normalizeHost(input);
-    if (!host) throw new Error("올바른 사이트 주소가 아닙니다.");
+    // 직접 입력할 때는 오타를 막으려고 점이 있는 주소나 localhost 만 (팝업은 지금 탭 호스트라 그대로 받는다)
+    if (!host || (!host.includes(".") && host !== "localhost")) throw new Error("올바른 사이트 주소가 아닙니다.");
     if ((await getState()).settings.sites[host]) throw new Error(`${host} 은(는) 이미 목록에 있습니다.`);
     const settings = await updateSites((sites) => ({ ...sites, [host]: { copy: true, strong: false } }));
     return { host, sites: settings.sites };
@@ -295,6 +354,22 @@ const handlers = {
       return sites;
     });
     return { sites: settings.sites };
+  },
+  // 검색 이동: 주소 하나에 키워드 여러 개 (쉼표로). 키워드는 띄어쓰기를 지워 저장 ("구글 지도" → "구글지도")
+  async "jump:save"({ url: input, keywords, oldUrl }) {
+    const url = normalizeUrl(input);
+    if (!url) throw new Error("올바른 주소가 아닙니다");
+    const keys = String(keywords || "").split(/[,，]/).map((k) => k.trim()).filter(Boolean).map(jumpKey);
+    if (!keys.length) throw new Error("키워드를 입력하세요");
+    if (keys.includes(null)) throw new Error("키워드는 띄어쓰기 빼고 40자 이하로 입력하세요");
+    // "지도, wleh" 처럼 다른 키워드의 한/영 모양이면 빼고 하나만 (어차피 자동으로 맞춘다)
+    const uniq = [...new Set(keys)].filter((k, i, all) => !all.some((o, j) => j < i && variants(o).includes(k)));
+    const { moved } = await saveJumps(url, uniq, oldUrl || null);
+    return { url, moved, jumps: liveJumps((await getState()).jumps) };
+  },
+  async "jump:delete"({ url }) {
+    await deleteJumps(url);
+    return { jumps: liveJumps((await getState()).jumps) };
   },
   async import({ json }) {
     const { state, report } = importData(json);

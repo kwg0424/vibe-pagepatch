@@ -47,21 +47,33 @@ Edge 확장 **User JavaScript and CSS** (ID `nbhcbdghjpllgmfilhnhkllmkecfmpld`, 
 탭마다 규칙 JS 가 **실행됨 / 대기(onload) / 오류 / 실행 안 됨** 인지 기록해서 팝업에 표시.
 SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 알려 줌 ("SPA 이동 - 새로고침하거나 'SPA 이동 시 다시 실행' 켜기").
 
-### 우클릭 · 복사 허용 (DragOn 에서 옮김)
+### 우클릭 · 복사 허용
 - 사이트(호스트)마다 `copy`(우클릭·선택·드래그·복사 차단 해제) / `strong`(키·마우스 이벤트 차단까지 무력화). 둘 다 끄면 목록에서 빠짐
 - 저장: `settings.sites` (`{ "example.com": { copy, strong } }`, 주소순) → 설정과 같이 동기화 (합치기는 설정 전체 단위로 늦은 쪽)
 - 넣기: `tabs.onUpdated` complete 때 `inject/unlock-copy.js` · `inject/unlock-strong.js` 를 MAIN world·모든 프레임에 `executeScript`. 켤 때는 바로 넣고, 끄는 것은 새로고침 후
 
+### 검색 이동 (StayTab 의 주소창 키워드)
+- 저장: `state.jumps = { 키워드: { id, url, updated } | { id, deleted, updated } }` (storage.local `jumps`). 키워드 = 띄어쓰기를 지운 소문자 (`jumpKey`). 규칙처럼 항목마다 합치기, 삭제 표시 30일. 브라우저 동기화 항목 `jump:<키워드>`, WebDAV 파일·내보내기에도
+- 이동: 키워드 × 검색엔진(Google · Bing · 네이버 · 다음 · DuckDuckGo)마다 declarativeNetRequest redirect. 글자 사이에 `+*` 를 끼운 정규식으로 띄어쓰기 무시, 한/영 변형(`src/hangul.js`)
+- 브라우저 정규식(RE2) 메모리 한도가 작다 (2026-10 Edge 측정: 한글 7자 · 영문 27자). `isRegexSupported` 로 확인해 ① 변형 묶음 정규식 ② 변형마다 정규식 ③ urlFilter(띄어쓰기 없는 모양, 크기 한도 없음) 순서로
+- 대비책: `tabs.onUpdated` 에서 탭 주소가 키워드 검색이면 한 번 더 옮김 (검색 미리 로드로 규칙을 건너뛴 경우, ③ 키워드를 띄어 쓴 경우)
+
+### 탭 복원 · 새 탭 주소 (StayTab)
+- `settings.restore`, `settings.newtab = { on, url }` (설정과 같이 동기화). 상주는 선택 권한 `background` (동기화 안 함)
+- 탭 목록 `storage.local.staySession`, 창 0개 `storage.session.stayIdle` (`src/stay.js`). 새 탭 `chrome_url_overrides.newtab` → `newtab.js` 가 저장소를 직접 읽고 `tabs.update`
+
 ## 2. 화면
 - **팝업**: 맨 위 우클릭 · 복사 허용 / 강력 모드 (http·https 페이지), 그 아래 이 페이지에 맞는 규칙(켜기/끄기, JS 실행 상태, 등록 오류), 이 사이트 규칙 만들기, **Claude 와 고치기**(사이드바 열기), 설정
-- **설정 - 규칙**: 목록(검색, 이름순), 편집기(Ace, CSS/JS 탭, Ctrl+S, 찾기, 자동완성), 옵션, 변경 기록(최근 20개, 불러와서 저장), 삭제. 다른 곳(Claude·동기화)에서 바뀌면 알림
-- **설정 - 우클릭 · 복사**: 사이트 추가(주소 → 호스트)·검색·모드 체크·삭제 (DragOn 사이트 관리와 같음)
+- **설정 - 사이트 규칙**: 목록(검색, 이름순), 편집기(Ace, CSS/JS 탭, Ctrl+S, 찾기, 자동완성), 옵션, 변경 기록(최근 20개, 불러와서 저장), 삭제. 다른 곳(Claude·동기화)에서 바뀌면 알림
+- **설정 - 검색 이동** (사이트 규칙 탭 오른쪽): 주소 + 키워드(쉼표), 주소별로 묶은 목록(한/영 변형은 회색), 행 눌러 고치기, 삭제
+- **설정 - 설정**: 카드 3장 — ① 표시 · AI Code(Claude Code 연결) ② 브라우저(백그라운드 상주 · 탭 복원 · 새 탭 주소) ③ 동기화 · 데이터
+- **설정 - 우클릭 해제**: 사이트 추가(주소 → 호스트)·검색·모드 체크·삭제
 - **설정 - 설정**: 사용자 스크립트 상태·켜는 방법, Claude Code 연결, 동기화, 배지, 가져오기/내보내기
 - **사이드바**: Claude Code 채팅 (아래)
 - 배지(기본 켜짐): 이 페이지에 적용된 활성 규칙 수 (초록 바탕, 검은 글자)
 - 팝업: 규칙이 없으면 "사이트 규칙 추가"만, 규칙이 있고 Claude Code 가 연결돼 있을 때만 "Claude 와 고치기"
 - 규칙 활성화는 설정의 규칙 목록 왼쪽 체크박스와 팝업에서. 편집기는 JS(왼쪽)·CSS(오른쪽)를 나란히, 옵션은 각 편집기 위에
-- 아이콘: TapCode·DragOn·StayTab·EdgeMark 와 같은 모양 (#2563EB 둥근 사각형, 흰 반창고, 노란 패드) - `tools/make-icons.mjs`
+- 아이콘: TapCode·StayTab·EdgeMark 와 같은 모양 (#2563EB 둥근 사각형, 흰 반창고, 노란 패드) - `tools/make-icons.mjs`
 
 ## 3. Claude Code 연결
 ```
@@ -80,7 +92,7 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 - 작업 지침: `bridge/SKILL.md` (사이드바 시스템 프롬프트, 터미널 스킬로도 사용)
 
 ## 4. 동기화
-EdgeMark · StayTab · DragOn 과 같이 **브라우저 계정 / 서버(WebDAV) 중 하나**. 둘 다 이 PC 의 규칙과 **합치는** 방식 (규칙마다 updated 가 늦은 쪽, 삭제는 30일간 표시).
+EdgeMark · StayTab 과 같이 **브라우저 계정 / 서버(WebDAV) 중 하나**. 둘 다 이 PC 의 규칙과 **합치는** 방식 (규칙마다 updated 가 늦은 쪽, 삭제는 30일간 표시).
 - **브라우저 계정** (기본): `storage.sync`. 규칙 하나 = 항목 하나 (`rule:<id>`), 8 KB 넘으면 조각. 사용량 표시, 80 KB 넘으면 경고
 - **서버(WebDAV)**: "서버(WebDAV) 동기화 연결"로 전환. EdgeMark 와 같은 모듈 (PBKDF2 → AES-GCM 암호화, ETag 충돌 감지). 변경 5초 뒤 올리기, 15분마다 받아 오기. 서버 모드에서는 storage.sync 를 건드리지 않음
   - 연결할 때 서버와 이 기기에 서로 다른 규칙이 있으면 묻는다: 합치기 / 서버 규칙으로 덮어쓰기 / 이 기기 규칙을 서버에 올리기
@@ -100,8 +112,9 @@ SCSS/LESS 컴파일, Prettier, 외부 라이브러리 주입(jQuery 포함), 공
 ```
 manifest.json  background.js  content.js
 popup.*  options.*  sidepanel.*  ui.css
-src/  model urls css inject store merge sync syncitems import tools bridge unlock (+ webdav crypto key ← EdgeMark)
-inject/  unlock-copy.js unlock-strong.js (← DragOn)
+src/  model urls css inject store merge sync syncitems import tools bridge unlock jump stay hangul (+ webdav crypto key ← EdgeMark)
+newtab.html newtab.js   (← StayTab)
+inject/  unlock-copy.js unlock-strong.js
 bridge/  host.mjs mcp.mjs ws.mjs common.mjs tooldefs.mjs SKILL.md install.ps1
 vendor/ace/  (Ace 1.44, CSS·JS 모드, 테마 2개, 검색, 자동완성)
 tools/  export-from-original.mjs make-icons.mjs

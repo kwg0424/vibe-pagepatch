@@ -1,12 +1,18 @@
-/* DragOn · StayTab 팝업과 같은 모양 */
+/* StayTab · EdgeMark 와 같은 모양 */
 body { width: 320px; padding: 12px; font-size: 13px; line-height: 1.4; }
 header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 header img { width: 20px; height: 20px; }
 .title { flex: 1; font-weight: 700; font-size: 15px; }
 .host { margin: 8px 0 0; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-#unlock .row { align-items: center; }
-#uReload { width: 100%; margin-top: 10px; padding: 7px; }
+/* 우클릭 · 복사 허용: 아래 규칙 목록과 나뉘게 테두리 상자로 */
+#unlock { margin-top: 10px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft); }
+.u-toggles { display: grid; grid-template-columns: 1fr 1fr; }
+.u-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 0; cursor: pointer; white-space: nowrap; }
+.u-toggle b { font-weight: 600; }
+.u-toggle + .u-toggle { border-left: 1px solid var(--line); padding-left: 12px; margin-left: 12px; } /* 가운데 세로선 */
+#uReload { width: 100%; margin: 0 0 10px; padding: 7px; }
+#uMsg { margin: 0 0 10px; }
 #list { max-height: 360px; overflow: auto; }
 .row { align-items: flex-start; }
 .row .txt { min-width: 0; flex: 1; }

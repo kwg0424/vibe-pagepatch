@@ -1,4 +1,4 @@
-// 우클릭·복사 허용 (DragOn 에서 옮김) 기본 모드: 우클릭, 텍스트 선택, 드래그, 복사 차단 해제
+// 우클릭·복사 허용 기본 모드: 우클릭, 텍스트 선택, 드래그, 복사 차단 해제
 (() => {
   if (window.__dragonCopy) return;
   window.__dragonCopy = true;

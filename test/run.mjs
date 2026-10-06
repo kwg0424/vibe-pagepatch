@@ -14,6 +14,8 @@ import { mergeStates, sameState } from "../src/merge.js";
 import { normalizeRule, normalizeState, normalizeSettings, normalizeHost } from "../src/model.js";
 import { toItems, fromItems, diffItems, ITEM_MAX } from "../src/syncitems.js";
 import { jsCode, jsSources, cssCode, buildScripts } from "../src/inject.js";
+import { toQwerty, toHangul } from "../src/hangul.js";
+import { jumpKey, variants, ruleCandidates, matchers } from "../src/jump.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 let passed = 0;
@@ -109,11 +111,13 @@ test("PagePatch 내보내기 → 가져오기", () => {
   assert.equal(back.state.rules["r:a"].css, state.rules["r:a"].css);
 });
 
-// ── 우클릭 · 복사 허용 (DragOn 에서 옮김) ──
+// ── 우클릭 · 복사 허용 ──
 test("우클릭·복사 사이트: 주소 맞추기·정렬·둘 다 끈 사이트 빼기", () => {
   assert.equal(normalizeHost("https://www.Example.com/path"), "www.example.com");
   assert.equal(normalizeHost("example.com"), "example.com");
-  assert.equal(normalizeHost("localhost"), null);
+  assert.equal(normalizeHost("localhost"), "localhost"); // 팝업이 넘기는 점 없는 호스트도 저장된다
+  assert.equal(normalizeHost("http://localhost:3000/x"), "localhost");
+  assert.equal(normalizeHost("Bad Host"), null);
   const sites = normalizeSettings({ sites: { "b.test": { copy: 1 }, "a.test": { strong: true }, "off.test": { copy: false, strong: false }, "Bad Host": { copy: true } } }).sites;
   assert.deepEqual(Object.keys(sites), ["a.test", "b.test"]);
   assert.deepEqual(sites["b.test"], { copy: true, strong: false });
@@ -125,6 +129,103 @@ test("사이트 목록은 설정과 같이 합치고 storage.sync 로 오간다"
   assert.deepEqual(Object.keys(mergeStates(a, b).settings.sites), ["new.test"]);
   const state = normalizeState(a);
   assert.ok(sameState(fromItems(toItems(state)), state));
+});
+
+// ── 검색 이동 (StayTab 의 주소창 키워드) ──
+test("한/영 자판 변환", () => {
+  assert.equal(toQwerty("지도"), "wleh");
+  assert.equal(toQwerty("닭값"), "ekfrrkqt"); // 겹받침
+  assert.equal(toQwerty("왜"), "dho"); // 겹모음
+  assert.equal(toQwerty("빠ㄱ"), "Qkr"); // 쌍자음, 낱자
+  assert.equal(toHangul("wleh"), "지도");
+  assert.equal(toHangul("gksk"), "하나"); // 받침이 다음 글자 첫소리로
+  assert.equal(toHangul("ekfrk"), "달가"); // 겹받침 나누기
+  for (const w of ["메일", "네이버 지도", "쿠팡", "뷁", "읽기", "없어"]) assert.equal(toHangul(toQwerty(w)), w);
+});
+
+// DNR 은 RE2 로 맞춘다. 여기 쓰는 문법은 JS 정규식과 같으므로 JS 로 확인한다 (대소문자 무시)
+const MAP = "https://map.naver.com/p/";
+const jumpsOf = (o) => Object.fromEntries(Object.entries(o).map(([k, url]) => [jumpKey(k), { id: jumpKey(k), url, updated: 1 }]));
+const goes = (jumps, url) => matchers(jumps).find((m) => m.re.test(url))?.url ?? null;
+const eq = (s) => s.split(" ").map(encodeURIComponent).join("+"); // 주소창 검색처럼 공백은 +
+
+test("검색 이동: 키워드는 띄어쓰기를 지워 저장", () => {
+  assert.equal(jumpKey("구글 지도"), "구글지도");
+  assert.equal(jumpKey("  Google  Maps "), "googlemaps");
+  assert.equal(jumpKey("   "), null);
+  assert.equal(jumpKey("가".repeat(41)), null);
+  assert.deepEqual(variants("지도"), ["지도", "wleh"]);
+  assert.deepEqual(variants("map"), ["map", "ㅡ메"]);
+});
+
+test("검색 이동: 띄어쓰기 상관없이, 한/영 전환 없이, 검색엔진 5곳", () => {
+  const jumps = jumpsOf({ "구글 지도": MAP });
+  for (const term of ["구글 지도", "구글지도", "구글  지도", "구 글 지 도", "rnrmf wleh", "RNRMFWLEH"]) {
+    assert.equal(goes(jumps, `https://www.google.com/search?q=${eq(term)}&oq=x&sourceid=chrome`), MAP, term);
+    assert.equal(goes(jumps, `https://www.google.co.kr/search?q=${eq(term)}`), MAP, term);
+    assert.equal(goes(jumps, `https://www.bing.com/search?q=${eq(term)}&form=QBLH`), MAP, term);
+    assert.equal(goes(jumps, `https://search.naver.com/search.naver?where=nexearch&query=${eq(term)}`), MAP, term);
+    assert.equal(goes(jumps, `https://search.daum.net/search?w=tot&q=${eq(term)}`), MAP, term);
+    assert.equal(goes(jumps, `https://duckduckgo.com/?q=${eq(term)}&t=h_`), MAP, term);
+  }
+  assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("구글 지도")}`), MAP); // 공백 %20
+  assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("구글지도").toLowerCase()}`), MAP); // 소문자 인코딩
+});
+
+test("검색 이동: 키워드가 들어간 다른 검색은 그대로", () => {
+  const jumps = jumpsOf({ 지도: MAP, "c++": "https://isocpp.org/" });
+  for (const url of [
+    `https://www.google.com/search?q=${eq("지도 앱")}`,
+    `https://www.google.com/search?q=${eq("서울지도")}`,
+    `https://www.google.com/search?q=wleh2`,
+    `https://www.google.com/search?oq=${eq("지도")}&q=${eq("지도 보기")}`, // oq 만 같음
+    `https://www.google.com/maps?q=${eq("지도")}`,
+    `https://www.example.com/search?q=${eq("지도")}`,
+    `https://www.google.com/search?q=cxx`,
+  ]) assert.equal(goes(jumps, url), null, url);
+  assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("c++")}`), "https://isocpp.org/");
+});
+
+// urlFilter 문법 → JS 정규식 (앞뒤 | 는 시작·끝 고정, * 는 아무거나)
+const filterRe = (f) => {
+  const end = f.endsWith("|");
+  const body = f.slice(1, end ? -1 : undefined).replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === "*" ? ".*" : "\\" + c));
+  return new RegExp(`^${body}${end ? "$" : ""}`, "i");
+};
+test("검색 이동: 긴 키워드는 urlFilter 로 (띄어쓰기 없는 모양만, 다른 검색은 그대로)", () => {
+  const id = jumpKey("가나다라마바사아자차카");
+  const c = ruleCandidates({ [id]: { id, url: MAP } })[0]; // 구글
+  assert.ok(c.combined && c.each.length === 2 && c.each.every((e) => e.regex && e.filters.length));
+  const hits = (url) => c.each.some((e) => e.filters.some((f) => filterRe(f).test(url)));
+  assert.ok(hits(`https://www.google.com/search?q=${eq(id)}&sourceid=chrome`));
+  assert.ok(hits(`https://www.google.co.kr/search?ie=UTF-8&q=${eq(id)}`));
+  assert.ok(hits(`https://www.google.com/search?q=${eq(id)}`));
+  assert.ok(hits(`https://www.google.com/search?q=${toQwerty(id)}&oq=x`)); // 한/영 전환 없이
+  assert.ok(!hits(`https://www.google.com/search?q=${eq(id + " 앱")}&sourceid=chrome`));
+  assert.ok(!hits(`https://www.google.com/search?oq=${eq(id)}&q=x`));
+  assert.ok(!hits(`https://www.bing.com/search?q=${eq(id)}`)); // 이 후보는 구글용
+});
+
+test("검색 이동 키워드: 항목마다 합치고 storage.sync · 내보내기로 오간다", () => {
+  const a = { rules: {}, jumps: { 지도: { id: "지도", url: "https://new.test/", updated: 5 }, 메일: { id: "메일", deleted: 6, updated: 6 } } };
+  const b = { rules: {}, jumps: { 지도: { id: "지도", url: "https://old.test/", updated: 2 }, 메일: { id: "메일", url: "https://mail.test/", updated: 3 }, 쿠팡: { id: "쿠팡", url: "https://coupang.com", updated: 1 } } };
+  const m = mergeStates(a, b, 10);
+  assert.ok(sameState(m, mergeStates(b, a, 10)));
+  assert.equal(m.jumps.지도.url, "https://new.test/");
+  assert.ok(m.jumps.메일.deleted);
+  assert.equal(m.jumps.쿠팡.url, "https://coupang.com/"); // 주소 맞춤
+  assert.ok(sameState(fromItems(toItems(normalizeState(m))), normalizeState(m)));
+  assert.ok(Object.keys(toItems(normalizeState(m))).includes("jump:지도"));
+  const back = importData(JSON.parse(JSON.stringify(exportState(normalizeState(m)))), 99);
+  assert.deepEqual(Object.keys(back.state.jumps).sort(), ["지도", "쿠팡"]); // 지운 것은 내보내지 않음
+  assert.equal(normalizeState({ jumps: { x: { id: "구글 지도", url: "a.com" } } }).jumps["구글지도"].url, "https://a.com/");
+});
+
+test("새 탭 · 탭 복원 설정 기본값", () => {
+  const s = normalizeSettings(null);
+  assert.equal(s.restore, false);
+  assert.deepEqual(s.newtab, { on: true, url: "https://www.naver.com/" });
+  assert.deepEqual(normalizeSettings({ newtab: { on: false } }).newtab, { on: false, url: "https://www.naver.com/" });
 });
 
 // ── 합치기 ──

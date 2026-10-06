@@ -1,4 +1,4 @@
-// 동기화: 브라우저 계정 / 서버(WebDAV) 중 하나 (EdgeMark · StayTab · DragOn 과 같은 방식).
+// 동기화: 브라우저 계정 / 서버(WebDAV) 중 하나 (EdgeMark · StayTab 과 같은 방식).
 //   browser (기본): chrome.storage.sync. Edge 에 로그인하고 확장 동기화를 켜 둔 PC 끼리
 //   server        : 사용자 WebDAV 서버에 암호화한 파일 하나. 서버 모드에서는 storage.sync 를 건드리지 않는다
 // 둘 다 이 PC 의 규칙(storage.local)과 합치는 방식이다 (규칙마다 늦게 고친 쪽, 삭제 표시 30일).
@@ -90,7 +90,7 @@ export function syncWebdav() {
         const { state, changed } = remoteState ? await mergeIn(remoteState, "sync") : { state: await getState(), changed: false };
         let action = changed ? "pulled" : "unchanged";
         if (!remoteState || !sameState(state, remoteState)) {
-          const blob = await encryptVault({ app: "PagePatch", v: 1, rules: state.rules, settings: state.settings }, credentialSecret(cfg), remoteState ? remote.blob : undefined);
+          const blob = await encryptVault({ app: "PagePatch", v: 1, rules: state.rules, jumps: state.jumps, settings: state.settings }, credentialSecret(cfg), remoteState ? remote.blob : undefined);
           const res = await pushVault(cfg, remote.etag, blob);
           if (res.conflict) continue; // 그 사이 다른 기기가 올림 → 다시 받아서 합친다
           action = changed ? "merged" : remote.blob ? "pushed" : "created";
@@ -131,7 +131,7 @@ export async function connectServer({ url, username, password, choice }) {
 
   await setSyncConfig({ mode: "server", webdav: cfg });
   if (choice === "remote" && remoteState) await replaceAll(remoteState, "sync");
-  else if (choice === "local" && remoteState) await preferLocal(Object.keys(remoteState.rules));
+  else if (choice === "local" && remoteState) await preferLocal(remoteState);
   return { action: await syncWebdav() };
 }
 

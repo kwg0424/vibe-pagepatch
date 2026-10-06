@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 아이콘 PNG 만들기 (외부 패키지 없이): 파란 둥근 사각형 + 흰 대각선 반창고(패치) + 노란 패드.
-// TapCode · DragOn · StayTab · EdgeMark 와 같은 모양: 꽉 찬 #2563EB 사각형(모서리 22%), 흰 평면 도형, 노랑(#FACC15) 포인트 하나.
+// TapCode · StayTab · EdgeMark 와 같은 모양: 꽉 찬 #2563EB 사각형(모서리 22%), 흰 평면 도형, 노랑(#FACC15) 포인트 하나.
 //   node tools/make-icons.mjs   → icons/icon-{16,32,48,128}.png
 import fs from "node:fs";
 import zlib from "node:zlib";

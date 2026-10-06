@@ -118,7 +118,7 @@ pre.code { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; wh
 #importReport ul { margin: 4px 0; padding-left: 18px; }
 #bRetryWrap { margin-bottom: 8px; }
 
-/* ── 우클릭 · 복사 (DragOn 사이트 관리와 같은 모양) ── */
+/* ── 우클릭 해제 (사이트 목록) ── */
 .u-add { display: flex; gap: 8px; }
 .u-add .input { flex: 1; min-width: 0; }
 .u-toolbar { display: flex; align-items: center; gap: 12px; margin: 20px 0 8px; }
@@ -133,6 +133,23 @@ pre.code { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; wh
 .u-table .del { padding: 4px 10px; font-size: 12px; color: var(--danger); }
 .u-table .del:hover { border-color: var(--danger); background: transparent; }
 #uEmpty { margin-top: 12px; }
+
+/* 설정 화면은 카드 여러 장 (설정 · 브라우저 · 새 탭 · 동기화) → 카드 사이 간격 */
+.settings .card + .card { margin-top: -12px; }
+
+/* ── 검색 이동 · 새 탭 주소 (StayTab 과 같은 모양) ── */
+.j-form { display: flex; gap: 8px; margin-top: 12px; }
+.j-form .input { flex: 1; min-width: 0; }
+.j-form .input.j-kw { flex: 0 0 260px; }
+.j-table { margin-top: 16px; }
+.j-table td:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.j-table .col-kw { width: 42%; }
+.j-table .col-kw .auto { color: var(--muted); } /* 한/영 전환 없이 친 모양 (자동) */
+.j-table tbody tr { cursor: pointer; }
+.j-table tbody tr:hover { background: var(--bg-hover); }
+.j-table tbody tr.editing { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+#jEmpty { margin-top: 12px; }
+@media (max-width: 640px) { .j-form { flex-wrap: wrap; } .j-form .input.j-kw { flex: 1 1 100%; } }
 
 dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); width: 340px; padding: 18px; }
 dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
