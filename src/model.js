@@ -17,7 +17,7 @@
 //   offCSS     이 규칙의 CSS 만 끄기
 // Jump = 검색 이동 키워드 (StayTab 에서 옮김, 아래 normalizeJump · src/jump.js)
 // Settings = { hideBadge(아이콘에 규칙 수 숨기기, 기본 false = 표시), sites, restore, newtab, updated }
-//   sites: 우클릭·복사 허용 { "example.com": { copy, strong } }. 둘 다 끈 사이트는 두지 않는다.
+//   sites: 복사 제한 해제 { "example.com": { copy, strong } }. 둘 다 끈 사이트는 두지 않는다.
 //          설정과 같이 동기화된다 (브라우저 동기화의 settings 항목 8 KB → 사이트 200개쯤까지)
 
 export const FLAGS = ["off", "strictUrl", "isoJS", "isoCSS", "deepJS", "deepCSS", "atStartJS", "onLoadJS", "spaJS", "important", "offJS", "offCSS"];

@@ -111,7 +111,7 @@ test("PagePatch 내보내기 → 가져오기", () => {
   assert.equal(back.state.rules["r:a"].css, state.rules["r:a"].css);
 });
 
-// ── 우클릭 · 복사 허용 ──
+// ── 복사 제한 해제 ──
 test("우클릭·복사 사이트: 주소 맞추기·정렬·둘 다 끈 사이트 빼기", () => {
   assert.equal(normalizeHost("https://www.Example.com/path"), "www.example.com");
   assert.equal(normalizeHost("example.com"), "example.com");

@@ -2,7 +2,7 @@
 //   - 규칙 저장(유일한 쓰기 담당) → userScripts 등록·탭 CSS·배지 갱신 → 동기화 예약
 //   - 팝업·설정·사이드바 메시지 처리
 //   - Claude Code 연결 유지 (src/bridge.js)
-//   - 우클릭·복사 허용 (src/unlock.js)
+//   - 복사 제한 해제 (src/unlock.js)
 //   - 검색 이동 · 탭 복원 · 새 탭 주소 (StayTab 에서 옮김, src/jump.js · src/stay.js · newtab.js)
 import { getState, saveRule, deleteRule, saveSettings, updateSites, importState, getHistory, revertRule, saveJumps, deleteJumps } from "./src/store.js";
 import { applyUnlock, injectUnlock, unlockHost } from "./src/unlock.js";
@@ -193,7 +193,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, info) => {
 // ── 탭 복원 (StayTab) ──
 initStay({ getSettings: async () => (await getState()).settings });
 
-// 우클릭·복사 허용: 페이지 로드가 끝나면
+// 복사 제한 해제: 페이지 로드가 끝나면
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== "complete" || !unlockHost(tab.url)) return;
   applyUnlock(tabId, tab.url, (await getState()).settings);
@@ -331,7 +331,7 @@ const handlers = {
     await updateAllBadges(await getState());
     return { settings };
   },
-  // 우클릭·복사 허용. mode: copy | strong. 켤 때는 tabId 의 페이지에 바로 넣는다
+  // 복사 제한 해제. mode: copy | strong. 켤 때는 tabId 의 페이지에 바로 넣는다
   async "unlock:set"({ host, mode, value, tabId }) {
     if (!["copy", "strong"].includes(mode)) throw new Error("알 수 없는 모드입니다");
     if (value && tabId != null) injectUnlock(tabId, mode);

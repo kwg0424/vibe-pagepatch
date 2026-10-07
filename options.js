@@ -168,6 +168,7 @@ function fillForm(rule) {
 
 function openRule(rule) {
   current = { id: rule.id, original: structuredClone(rule) };
+  if (rule.name.trim()) openFolder = rule.name.trim(); // 편집하는 규칙이 든 폴더만 연다 (다른 폴더는 닫힘)
   $("#placeholder").hidden = true;
   $("#form").hidden = false;
   fillForm(rule);
@@ -193,6 +194,9 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// 저장 중에는 storage.onChanged 가 내 저장을 "다른 곳에서 바뀜"으로 보지 않게 (응답 전엔 current.original 이 저장 전 값)
+let saving = false;
+
 async function save() {
   if (!current) return;
   const f = readForm();
@@ -201,6 +205,7 @@ async function save() {
     $("#fUrls").focus();
     return;
   }
+  saving = true;
   try {
     const res = await send("rule:save", { rule: { ...(current.id ? { id: current.id } : {}), ...f } });
     current = { id: res.rule.id, original: structuredClone(res.rule) };
@@ -210,6 +215,8 @@ async function save() {
     toast(res.error ? "저장했지만 적용에 문제가 있습니다" : "저장했습니다");
   } catch (e) {
     toast(e.message);
+  } finally {
+    saving = false;
   }
 }
 $("#save").onclick = save;
@@ -279,66 +286,148 @@ $("#closeHistory").onclick = () => {
 
 // ── 목록 ──
 
+// 이름이 같은 규칙은 폴더로 묶는다. 처음엔 모두 닫힘, 한 번에 하나만 열린다 (다른 폴더를 열면 열린 폴더는 닫힘)
+let openFolder = null; // 열린 폴더 이름
+localStorage.removeItem("openFolders"); // 예전(여러 개 열기) 기억 지우기
+
 function renderList() {
   const q = $("#search").value.trim().toLowerCase();
   const ul = $("#ruleList");
   ul.replaceChildren();
   const list = data.rules.filter((r) => !q || [r.name, r.urls, r.css, r.js].some((s) => s.toLowerCase().includes(q)));
   $("#noRules").hidden = data.rules.length > 0;
+  const groups = new Map(); // 이름 → 규칙들 (처음 나온 순서)
   for (const r of list) {
-    const li = document.createElement("li");
-    li.classList.toggle("active", r.id === current?.id);
-    li.classList.toggle("off", r.flags.off);
-    // 활성화 체크박스 (목록에서 바로 켜고 끔)
-    const on = document.createElement("input");
-    on.type = "checkbox";
-    on.checked = !r.flags.off;
-    on.title = r.flags.off ? "비활성 · 누르면 활성화" : "활성 · 누르면 비활성화";
-    on.onclick = (e) => e.stopPropagation();
-    on.onchange = async () => {
-      const off = !on.checked;
-      if (r.id === current?.id) current.original.flags.off = off; // 편집 중인 규칙이면 '다른 곳에서 바뀜' 알림이 뜨지 않게
-      r.flags.off = off;
-      li.classList.toggle("off", off);
-      await send("rule:toggle", { id: r.id, off });
-    };
-    li.append(on);
+    const key = r.name.trim() || `\0${r.id}`; // 이름 없는 규칙은 묶지 않는다
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  for (const [name, rules] of groups) {
+    if (rules.length === 1) {
+      ul.append(ruleItem(rules[0]));
+      continue;
+    }
+    // 검색 중이면 모두 펼친다 (편집할 규칙을 열 때 그 폴더가 openFolder 가 된다 → openRule)
+    const open = !!q || openFolder === name;
+    const folder = document.createElement("li");
+    folder.className = "folder";
+    folder.classList.toggle("open", open);
+    const head = document.createElement("div");
+    head.className = "folder-head";
+    head.classList.toggle("off", rules.every((r) => r.flags.off));
+    const arrow = document.createElement("span");
+    arrow.className = "arrow";
+    arrow.textContent = open ? "▾" : "▸";
+    // 단일 규칙과 같은 두 줄 (이름 / 규칙 개수) → 높이가 같다
     const txt = document.createElement("div");
     txt.className = "txt";
     const nm = document.createElement("div");
     nm.className = "nm";
-    nm.textContent = r.name || "(이름 없음)";
-    const ur = document.createElement("div");
-    ur.className = "ur";
-    ur.textContent = r.urls;
-    txt.append(nm, ur);
-    const kind = document.createElement("span");
-    kind.className = "kind";
-    // 따로 꺼 둔 쪽은 줄을 긋는다
-    for (const [k, on] of [["JS", r.js.trim() && !r.flags.offJS], ["CSS", r.css.trim() && !r.flags.offCSS]]) {
-      if (!r[k.toLowerCase()].trim()) continue;
-      if (kind.childNodes.length) kind.append("·");
-      const s = document.createElement(on ? "span" : "s");
-      s.textContent = k;
-      kind.append(s);
-    }
-    if (data.errors[r.id]) {
+    nm.textContent = name;
+    const count = document.createElement("div");
+    count.className = "ur";
+    count.textContent = `규칙 ${rules.length}개`;
+    txt.append(nm, count);
+    head.append(arrow, txt);
+    if (rules.some((r) => data.errors[r.id])) {
       const dot = document.createElement("span");
       dot.className = "dot err";
-      dot.title = data.errors[r.id];
-      li.append(dot);
+      dot.title = "오류가 있는 규칙이 있습니다";
+      head.append(dot);
     }
-    li.append(txt, kind);
-    li.onclick = () => {
-      if (r.id === current?.id || !confirmLeave()) return;
-      location.hash = `rule=${r.id}`;
+    folder.build = () => {
+      const sub = document.createElement("ul");
+      for (const r of rules) sub.append(ruleItem(r, true));
+      return sub;
     };
-    ul.append(li);
+    // 다시 그리지 않고 이 폴더만 펼치고, 열려 있던 다른 폴더는 접는다 (애니메이션)
+    head.onclick = () => {
+      openFolder = openFolder === name ? null : name;
+      for (const f of ul.querySelectorAll(".folder.open")) if (f !== folder) setFolderOpen(f, false);
+      setFolderOpen(folder, openFolder === name);
+    };
+    folder.append(head);
+    if (open) folder.append(folder.build());
+    ul.append(folder);
   }
+}
+
+// 폴더 펼치기·접기 애니메이션 시간(ms, EdgeMark 기본값과 같게). 0 이면 바로
+const FOLDER_MS = 100;
+
+// 하위 목록 높이를 0 ↔ 실제 높이로 (EdgeMark 와 같은 방식). 끝나면 이루어지고, 중간에 멈추면(cancel) 거부되는 Promise
+function slide(box, opening) {
+  for (const a of box.getAnimations()) a.cancel();
+  const h = box.scrollHeight;
+  if (!FOLDER_MS || !h) return Promise.resolve();
+  const frames = [{ height: "0px", opacity: 0, overflow: "hidden" }, { height: `${h}px`, opacity: 1, overflow: "hidden" }];
+  if (!opening) frames.reverse();
+  return box.animate(frames, { duration: FOLDER_MS, easing: "ease-out" }).finished;
+}
+
+function setFolderOpen(folder, open) {
+  if (folder.classList.contains("open") === open) return;
+  folder.classList.toggle("open", open);
+  folder.querySelector(".arrow").textContent = open ? "▾" : "▸";
+  let sub = folder.querySelector(":scope > ul");
+  if (open) {
+    if (!sub) folder.append((sub = folder.build()));
+    slide(sub, true).catch(() => {});
+  } else if (sub) {
+    // 접기: 애니메이션이 끝나면 하위 목록을 뺀다 (그 사이 다시 펼쳤으면 그대로)
+    slide(sub, false).then(() => !folder.classList.contains("open") && sub.remove(), () => {});
+  }
+}
+
+// inFolder: 폴더 안에서는 이름 대신 주소만 보여 준다
+function ruleItem(r, inFolder = false) {
+  const li = document.createElement("li");
+  li.className = "rule";
+  li.classList.toggle("active", r.id === current?.id);
+  li.classList.toggle("off", r.flags.off);
+  // 활성화 체크박스 (목록에서 바로 켜고 끔)
+  const on = document.createElement("input");
+  on.type = "checkbox";
+  on.checked = !r.flags.off;
+  on.title = r.flags.off ? "비활성 · 누르면 활성화" : "활성 · 누르면 비활성화";
+  on.onclick = (e) => e.stopPropagation();
+  on.onchange = async () => {
+    const off = !on.checked;
+    if (r.id === current?.id) current.original.flags.off = off; // 편집 중인 규칙이면 '다른 곳에서 바뀜' 알림이 뜨지 않게
+    r.flags.off = off;
+    li.classList.toggle("off", off);
+    await send("rule:toggle", { id: r.id, off });
+  };
+  li.append(on);
+  const txt = document.createElement("div");
+  txt.className = "txt";
+  if (!inFolder) {
+    const nm = document.createElement("div");
+    nm.className = "nm";
+    nm.textContent = r.name || "-";
+    nm.classList.toggle("empty", !r.name);
+    txt.append(nm);
+  }
+  const ur = document.createElement("div");
+  ur.className = "ur";
+  ur.textContent = r.urls;
+  txt.append(ur);
+  if (data.errors[r.id]) {
+    const dot = document.createElement("span");
+    dot.className = "dot err";
+    dot.title = data.errors[r.id];
+    li.append(dot);
+  }
+  li.append(txt);
+  li.onclick = () => {
+    if (r.id === current?.id || !confirmLeave()) return;
+    location.hash = `rule=${r.id}`;
+  };
+  return li;
 }
 $("#search").addEventListener("input", renderList);
 
-// ── 우클릭 해제 (사이트 목록) ──
+// ── 복사 제한 해제 (사이트 목록) ──
 
 function uMessage(text, isError) {
   const m = $("#uMessage");
@@ -351,7 +440,7 @@ function siteCheckbox(host, mode) {
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = !!data.settings.sites[host][mode];
-  input.setAttribute("aria-label", `${host} ${mode === "copy" ? "우클릭 · 복사" : "강력 모드"}`);
+  input.setAttribute("aria-label", `${host} ${mode === "copy" ? "복사 제한 해제" : "강력 해제"}`);
   input.onchange = async () => {
     const res = await send("unlock:set", { host, mode, value: input.checked });
     data.settings.sites = res.sites;
@@ -822,6 +911,11 @@ function route() {
     } catch {}
     openRule({ ...emptyRule(urls), name: host });
     history.replaceState(null, "", "#");
+  } else if (!current && data.rules.length) {
+    // 처음 들어왔을 때(편집 중인 규칙 없음)는 목록 맨 위 규칙을 연다
+    const r = data.rules[0];
+    history.replaceState(null, "", `#rule=${r.id}`);
+    openRule(r);
   }
 }
 window.addEventListener("hashchange", route);
@@ -832,7 +926,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     if (busy) return;
     if ((changes.syncStatus || changes.syncConfig) && Date.now() - lastRunEnd > 1500) message("");
     await reload();
-    if (changes.rules && current?.id) {
+    if (changes.rules && current?.id && !saving) {
       const r = data.rules.find((x) => x.id === current.id);
       if (!r) return;
       const o = current.original;

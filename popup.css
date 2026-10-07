@@ -5,11 +5,14 @@ header img { width: 20px; height: 20px; }
 .title { flex: 1; font-weight: 700; font-size: 15px; }
 .host { margin: 8px 0 0; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 우클릭 · 복사 허용: 아래 규칙 목록과 나뉘게 테두리 상자로 */
+/* 복사 제한 해제: 아래 규칙 목록과 나뉘게 테두리 상자로 */
 #unlock { margin-top: 10px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft); }
 .u-toggles { display: grid; grid-template-columns: 1fr 1fr; }
-.u-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 0; cursor: pointer; white-space: nowrap; }
-.u-toggle b { font-weight: 600; }
+/* 체크박스는 숨기고 글자 색으로 상태 표시 (켜짐 초록, 꺼짐 회색 — 규칙의 JS · CSS 와 같은 색). 글자를 누르면 켜고 끔 */
+.u-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 0; cursor: pointer; white-space: nowrap; user-select: none; }
+.u-toggle input { display: none; }
+.u-toggle b { font-weight: 600; color: var(--muted); }
+.u-toggle:has(input:checked) b { color: var(--ok); }
 .u-toggle + .u-toggle { border-left: 1px solid var(--line); padding-left: 12px; margin-left: 12px; } /* 가운데 세로선 */
 #uReload { width: 100%; margin: 0 0 10px; padding: 7px; }
 #uMsg { margin: 0 0 10px; }
@@ -20,6 +23,9 @@ header img { width: 20px; height: 20px; }
 .row b .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row.off b .nm { color: var(--muted); text-decoration: line-through; }
 .row small { font-size: 11px; }
+/* JS · CSS: 적용된 쪽만 초록, 나머지(꺼짐·실행 안 됨)는 회색 */
+.kinds { display: block; color: var(--muted); }
+.kinds .on { color: var(--ok); font-weight: 600; }
 .row input[type="checkbox"] { margin-top: 1px; }
 .st { display: flex; gap: 5px; align-items: baseline; }
 .st::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--muted); transform: translateY(-1px); }

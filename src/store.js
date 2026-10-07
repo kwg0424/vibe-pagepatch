@@ -87,7 +87,7 @@ export function saveSettings(patch) {
   });
 }
 
-// 우클릭·복사 허용 사이트 바꾸기: fn(지금 sites 복사본) 이 고친 sites 를 돌려준다 → 바뀐 settings
+// 복사 제한 해제 사이트 바꾸기: fn(지금 sites 복사본) 이 고친 sites 를 돌려준다 → 바뀐 settings
 // (둘 다 끈 사이트는 normalizeSettings 가 뺀다)
 export function updateSites(fn) {
   return serial(async () => {
