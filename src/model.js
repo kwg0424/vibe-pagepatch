@@ -1,6 +1,7 @@
 // 규칙·설정 데이터 모양. 저장·동기화·가져오기가 모두 이 함수로 값을 맞춘다.
 //
-// Rule = { id, name, urls, js, css, flags, created, updated }
+// Rule = { id, name, urls, js, css, notes, flags, created, updated }
+//   notes: AI 규칙(마크다운). 이 규칙으로 화면을 어떻게 바꾸려는지 사람이 쓴 의도 → 사이트 UI 가 바뀌어 CSS·JS 가 깨지면 AI 가 이걸 보고 다시 맞춘다
 //      | 삭제됨: { id, deleted, updated }   (다른 기기에 삭제를 전하는 표시. 30일 뒤 정리)
 // flags:
 //   off        규칙 끄기
@@ -49,6 +50,7 @@ export function normalizeRule(r) {
     urls: str(r.urls),
     js: str(r.js),
     css: str(r.css),
+    notes: str(r.notes),
     flags: normalizeFlags(r.flags),
     created: time(r.created) || time(r.updated),
     updated: time(r.updated),
@@ -152,5 +154,5 @@ export const sortByName = (list) =>
 export function sameContent(a, b) {
   if (!a || !b) return a === b;
   if (a.deleted || b.deleted) return !!a.deleted === !!b.deleted;
-  return a.name === b.name && a.urls === b.urls && a.js === b.js && a.css === b.css && FLAGS.every((k) => a.flags[k] === b.flags[k]);
+  return a.name === b.name && a.urls === b.urls && a.js === b.js && a.css === b.css && (a.notes || "") === (b.notes || "") && FLAGS.every((k) => a.flags[k] === b.flags[k]);
 }

@@ -45,6 +45,7 @@
           <span class="muted small" id="dirtyMark"></span>
           <button class="btn primary" id="save" title="Ctrl+S">저장</button>
           <button class="btn" id="cancel" title="저장 안 한 변경 버리기">변경 취소</button>
+          <button class="btn" id="aiBtn" title="화면을 어떻게 바꾸려는지 마크다운으로 적어 둡니다. 사이트 UI 가 바뀌어 CSS·JS 가 깨지면 AI 가 이걸 보고 다시 맞춥니다">AI 규칙</button>
           <button class="btn" id="historyBtn">기록</button>
           <button class="btn danger" id="delete">삭제</button>
         </div>
@@ -60,7 +61,7 @@
         </div>
         <div class="urlinfo small" id="urlInfo"></div>
 
-        <div class="codes">
+        <div class="codes" id="codePane">
           <div class="code">
             <div class="code-head"><label class="check" title="끄면 이 규칙의 JS 를 실행하지 않습니다 (코드는 그대로 둠)"><input type="checkbox" data-flag-on="offJS"> <b>JS</b></label> <span class="count" id="jsCount"></span>
               <div class="opts">
@@ -87,6 +88,20 @@
             </div>
             <div class="ace" id="aceCss"></div>
             <div class="hint muted small" id="cssHint"></div>
+          </div>
+        </div>
+
+        <!-- AI 규칙: 'AI 규칙' 버튼을 누르면 JS · CSS 대신 이 영역 (왼쪽 마크다운 편집, 오른쪽 미리보기) -->
+        <div class="codes notes" id="notesPane" hidden>
+          <div class="code">
+            <div class="code-head"><b>AI 규칙</b> <span class="muted small">마크다운</span> <span class="count" id="notesCount"></span></div>
+            <div class="ace" id="aceNotes"></div>
+            <div class="hint muted small">선택자 대신 눈에 보이는 모양으로 (예: 오른쪽 광고 칸). 규칙이 깨지면 AI 가 이걸 보고 다시 고칩니다</div>
+          </div>
+          <div class="code">
+            <div class="code-head"><b>미리보기</b></div>
+            <div class="md" id="notesView"></div>
+            <div class="hint"></div>
           </div>
         </div>
       </div>
@@ -215,7 +230,7 @@
         <label class="row">
           <span>
             <b>Claude Code 연결 사용</b>
-            <small>팝업의 'Claude 와 고치기'를 누르면 오른쪽 사이드바에서 Claude 와 대화하며 지금 페이지를 고칩니다</small>
+            <small>팝업의 'AI와 고치기'를 누르면 오른쪽 사이드바에서 Claude 와 대화하며 지금 페이지를 고칩니다</small>
           </span>
           <input type="checkbox" id="bEnabled">
         </label>

@@ -1,6 +1,6 @@
 // 사이드바: Claude Code 와 대화하며 지금 탭을 고친다.
 // background(src/bridge.js) ↔ 네이티브 호스트(bridge/host.mjs) ↔ claude -p.
-// 대화 내용은 창마다 session 저장소에 둔다 (사이드바를 닫았다 열어도 이어짐, 브라우저를 끄면 사라짐).
+// 사이드바를 열 때마다 새 대화 (팝업의 'AI와 고치기'를 다시 눌러도 새 대화 → newChatAt 신호).
 const $ = (s) => document.querySelector(s);
 const send = async (action, data = {}) => {
   const res = await chrome.runtime.sendMessage({ action, ...data });
@@ -9,8 +9,8 @@ const send = async (action, data = {}) => {
 };
 
 const win = await chrome.windows.getCurrent();
-const KEY = `chat:${win.id}`;
-let chat = (await chrome.storage.session.get(KEY))[KEY] || { sessionId: null, items: [] };
+chrome.storage.session.remove(`chat:${win.id}`); // 예전(대화 이어 가기) 저장분 정리
+let chat = { sessionId: null, items: [] };
 let running = null; // 진행 중인 chatId
 let currentText = null; // 지금 받아 쓰는 답 (items 안의 객체)
 let sawDelta = false;
@@ -48,9 +48,9 @@ renderStatus(state.bridgeStatus || { state: "off" });
 
 function renderStatus(st) {
   const s = st.state;
-  $("#dot").className = `dot ${s === "connected" ? (st.claude ? "ok" : "warn") : s === "off" ? "" : s === "not-installed" ? "err" : "warn"}`;
-  $("#statusText").textContent =
-    { off: "", connecting: "연결 중", connected: st.claude ? "Claude Code 연결됨" : "claude 없음", "not-installed": "설치 필요", waiting: "다시 연결 중" }[s] ?? s;
+  // 초록 = Claude Code 연결됨, 빨강 = 그 밖 (연결 중·설치 필요·꺼짐 등은 마우스를 올리면)
+  $("#dot").className = `dot ${s === "connected" && st.claude ? "ok" : "err"}`;
+  $("#dot").title = { off: "Claude Code 연결 꺼짐", connecting: "연결 중", connected: st.claude ? "Claude Code 연결됨" : "claude 를 찾지 못함", "not-installed": "설치 필요", waiting: "다시 연결 중" }[s] ?? s;
   const setup = $("#setup");
   setup.replaceChildren();
   setup.classList.add("hidden");
@@ -167,7 +167,6 @@ function scrollDown(force = false) {
   if (force || log.scrollHeight - log.scrollTop - log.clientHeight < 120) log.scrollTop = log.scrollHeight;
 }
 
-const persist = () => chrome.storage.session.set({ [KEY]: { sessionId: chat.sessionId, items: chat.items.map(({ el, ...rest }) => rest).slice(-200) } });
 
 renderAll();
 
@@ -192,7 +191,6 @@ async function submit(text) {
   $("#input").value = "";
   autoSize();
   updateComposer();
-  persist();
   port.postMessage({ type: "chat", chatId: running, text, sessionId: chat.sessionId, tab: tab ? { id: tab.id, url: tab.url, title: tab.title } : null });
 }
 
@@ -249,7 +247,6 @@ function onEnd(msg) {
   currentText = null;
   if (msg.error) add({ role: "error", text: msg.error });
   updateComposer();
-  persist();
 }
 
 $("#send").onclick = () => {
@@ -272,15 +269,18 @@ $("#input").addEventListener("keydown", (e) => {
 
 for (const chip of document.querySelectorAll(".chip")) chip.onclick = () => submit(chip.textContent);
 
-$("#newChat").onclick = () => {
+function newChat() {
   if (running) port.postMessage({ type: "chat-cancel", chatId: running });
   chat = { sessionId: null, items: [] };
   running = null;
-  persist();
   renderAll();
   updateComposer();
   $("#input").focus();
-};
+}
+// 사이드바가 열려 있는 채로 팝업의 'AI와 고치기'를 다시 누르면 새 대화
+chrome.storage.session.onChanged.addListener((changes) => {
+  if (changes.newChatAt?.newValue?.windowId === win.id) newChat();
+});
 
 $("#openSettings").onclick = () => chrome.runtime.openOptionsPage();
 
@@ -292,9 +292,4 @@ $("#clearPreview").onclick = async () => {
     .catch(() => {});
 };
 
-// 대화 중에 사이드바를 닫았다 열면 그 대화는 끊긴다 (background 가 취소함)
-if (chat.items.some((i) => i.role === "tool" && !i.status)) {
-  for (const i of chat.items) if (i.role === "tool" && !i.status) i.status = "err";
-  renderAll();
-}
 $("#input").focus();

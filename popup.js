@@ -160,7 +160,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
 $("#new").onclick = () => openOptions(`#new=${encodeURIComponent(tab.url)}`);
 
-// Claude 와 고치기: 이 페이지에 규칙이 있고 Claude Code 가 연결돼 있을 때만
+// AI와 고치기: 이 페이지에 규칙이 있고 Claude Code 가 연결돼 있을 때만
 function renderClaude() {
   const connected = info.bridgeStatus?.state === "connected" && !!info.bridgeStatus?.claude;
   $("#claude").hidden = !connected || !info.rules.length;
@@ -169,6 +169,7 @@ renderClaude();
 $("#claude").onclick = async () => {
   try {
     await chrome.sidePanel.open({ windowId: tab.windowId });
+    await chrome.storage.session.set({ newChatAt: { windowId: tab.windowId, at: Date.now() } }); // 이미 열려 있으면 새 대화로 (sidepanel.js)
   } catch (e) {
     alert(`사이드바를 열 수 없습니다: ${e.message}`);
   }

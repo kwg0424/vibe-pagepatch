@@ -26,7 +26,7 @@ powershell -ExecutionPolicy Bypass -File bridge\install.ps1            # 사이�
 powershell -ExecutionPolicy Bypass -File bridge\install.ps1 -WithMcp   # + 터미널 claude 에서도 PagePatch 도구
 powershell -ExecutionPolicy Bypass -File bridge\install.ps1 -Uninstall # 등록 해제
 ```
-그다음 PagePatch 설정 → Claude Code → **연결 사용** 켜기. 팝업의 **Claude 와 고치기**를 누르면 사이드바가 열립니다.
+그다음 PagePatch 설정 → Claude Code → **연결 사용** 켜기. 팝업의 **AI와 고치기**를 누르면 사이드바가 열립니다.
 
 - "광고 숨겨줘", "본문 폭 넓혀줘" → Claude 가 페이지를 살펴보고 CSS 를 **미리 적용**해서 보여 줍니다
 - "저장" → 규칙으로 저장. 잘못 저장했으면 설정 → 사이트 규칙 → **기록**에서 되돌리기

@@ -3,6 +3,7 @@
 import { parseUrls } from "./src/urls.js";
 import { FLAGS, NEW_RULE_FLAGS, normalizeUrl } from "./src/model.js";
 import { variants } from "./src/jump.js";
+import { renderMarkdown } from "./src/markdown.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -74,6 +75,14 @@ for (const [kind, el, mode] of [["css", "aceCss", "ace/mode/css"], ["js", "aceJs
   editors[kind] = ed;
   sessions[kind] = ed.session;
 }
+// AI 규칙(notes) 편집기: 마크다운이라 줄바꿈해서 보여 주고 자동완성은 끈다
+{
+  const ed = ace.edit("aceNotes", { theme: theme(), mode: "ace/mode/text", fontSize: 13.5, showPrintMargin: false, wrap: true, scrollPastEnd: 0.3, useWorker: false, tabSize: 2, useSoftTabs: true });
+  ed.commands.addCommand({ name: "save", bindKey: { win: "Ctrl-S", mac: "Command-S" }, exec: () => save() });
+  ed.session.on("change", () => !loadingForm && onEdit());
+  editors.notes = ed;
+  sessions.notes = ed.session;
+}
 dark.addEventListener("change", () => Object.values(editors).forEach((ed) => ed.setTheme(theme())));
 const editor = { resize: () => Object.values(editors).forEach((ed) => ed.resize()) };
 
@@ -90,7 +99,7 @@ function renderHints() {
   $("#codeHint").textContent = HINTS.js;
 }
 
-const emptyRule = (urls = "") => ({ id: null, name: "", urls, js: "", css: "", flags: Object.fromEntries(FLAGS.map((k) => [k, !!NEW_RULE_FLAGS[k]])) });
+const emptyRule = (urls = "") => ({ id: null, name: "", urls, js: "", css: "", notes: "", flags: Object.fromEntries(FLAGS.map((k) => [k, !!NEW_RULE_FLAGS[k]])) });
 
 function readForm() {
   const flags = {};
@@ -99,14 +108,14 @@ function readForm() {
   flags.off = !!current?.original?.flags.off; // 활성화는 왼쪽 목록에서
   flags.atStartJS = $("#fTiming").value === "start";
   flags.onLoadJS = $("#fTiming").value === "load";
-  return { name: $("#fName").value.trim(), urls: $("#fUrls").value.trim(), css: sessions.css.getValue(), js: sessions.js.getValue(), flags };
+  return { name: $("#fName").value.trim(), urls: $("#fUrls").value.trim(), css: sessions.css.getValue(), js: sessions.js.getValue(), notes: sessions.notes.getValue(), flags };
 }
 
 function isDirty() {
   if (!current) return false;
   const f = readForm();
   const o = current.original;
-  return f.name !== o.name || f.urls !== o.urls || f.css !== o.css || f.js !== o.js || FLAGS.some((k) => !!f.flags[k] !== !!o.flags[k]);
+  return f.name !== o.name || f.urls !== o.urls || f.css !== o.css || f.js !== o.js || f.notes !== (o.notes || "") || FLAGS.some((k) => !!f.flags[k] !== !!o.flags[k]);
 }
 
 function onEdit() {
@@ -116,8 +125,36 @@ function onEdit() {
   $("#cancel").disabled = !dirty;
   updateCounts();
   updateUrlInfo();
+  renderNotes();
   // 꺼 둔 쪽은 옵션·편집기를 흐리게 (편집은 그대로 됨)
   for (const box of $$("[data-flag-on]")) box.closest(".code").classList.toggle("disabled", !box.checked);
+}
+
+// AI 규칙: 'AI 규칙' 버튼으로 아래 영역을 JS · CSS ↔ AI 규칙(왼쪽 편집, 오른쪽 미리보기) 전환. 규칙을 바꿔도 보던 쪽 유지
+let aiMode = false;
+function setAiMode(on) {
+  aiMode = on;
+  $("#codePane").hidden = on;
+  $("#notesPane").hidden = !on;
+  $("#aiBtn").classList.toggle("active", on);
+  editor.resize();
+  if (on) editors.notes.focus();
+}
+$("#aiBtn").onclick = () => setAiMode(!aiMode);
+
+const NOTES_PLACEHOLDER = `<p class="muted">아직 없습니다. 왼쪽에 이렇게 적어 두면 됩니다:</p><pre><code>## 목적
+본문을 넓고 가운데로 정렬
+
+## 바꿀 것
+- 본문 폭 1920px 혹은 1280px
+- 이미지나 영상은 가로폭 100% 채울 것, 세로는 비율에 맞게 증가
+- 글자에서 오는 이모지 같은 글은 깨질 수 있으니 폰트 변경 금지</code></pre>`;
+
+function renderNotes() {
+  const md = sessions.notes.getValue();
+  $("#notesView").innerHTML = md.trim() ? renderMarkdown(md) : NOTES_PLACEHOLDER; // renderMarkdown 은 모든 글자를 이스케이프한다
+  $("#notesCount").textContent = md.trim() ? `${md.split("\n").length}줄` : "";
+  $("#aiBtn").classList.toggle("has-notes", !!md.trim());
 }
 
 function updateCounts() {
@@ -156,6 +193,7 @@ function fillForm(rule) {
   $("#fTiming").value = rule.flags.atStartJS ? "start" : rule.flags.onLoadJS ? "load" : "end";
   sessions.css.setValue(rule.css);
   sessions.js.setValue(rule.js);
+  sessions.notes.setValue(rule.notes || "");
   loadingForm = false;
   $("#changedNotice").hidden = true;
   const err = rule.id && data.errors[rule.id];
@@ -270,7 +308,7 @@ $("#historyBtn").onclick = async () => {
     meta.textContent = `CSS ${v.css.length}자 · JS ${v.js.length}자${v.flags.off ? " · 꺼짐" : ""}`;
     li.append(head, meta);
     li.onclick = () => {
-      fillForm({ ...current.original, name: v.name, urls: v.urls, css: v.css, js: v.js, flags: v.flags });
+      fillForm({ ...current.original, name: v.name, urls: v.urls, css: v.css, js: v.js, notes: v.notes || "", flags: v.flags });
       toast("이 버전을 불러왔습니다. 저장하면 반영됩니다");
     };
     ul.append(li);
@@ -294,7 +332,7 @@ function renderList() {
   const q = $("#search").value.trim().toLowerCase();
   const ul = $("#ruleList");
   ul.replaceChildren();
-  const list = data.rules.filter((r) => !q || [r.name, r.urls, r.css, r.js].some((s) => s.toLowerCase().includes(q)));
+  const list = data.rules.filter((r) => !q || [r.name, r.urls, r.css, r.js, r.notes || ""].some((s) => s.toLowerCase().includes(q)));
   $("#noRules").hidden = data.rules.length > 0;
   const groups = new Map(); // 이름 → 규칙들 (처음 나온 순서)
   for (const r of list) {
@@ -930,7 +968,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
       const r = data.rules.find((x) => x.id === current.id);
       if (!r) return;
       const o = current.original;
-      const changed = r.name !== o.name || r.urls !== o.urls || r.css !== o.css || r.js !== o.js || FLAGS.some((k) => r.flags[k] !== o.flags[k]);
+      const changed = r.name !== o.name || r.urls !== o.urls || r.css !== o.css || r.js !== o.js || (r.notes || "") !== (o.notes || "") || FLAGS.some((k) => r.flags[k] !== o.flags[k]);
       if (!changed) return;
       if (isDirty()) $("#changedNotice").hidden = false;
       else openRule(r);

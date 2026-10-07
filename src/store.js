@@ -51,7 +51,7 @@ export function saveRule(input, by = "user") {
     const prev = input.id && state.rules[input.id] && !state.rules[input.id].deleted ? state.rules[input.id] : null;
     const now = Date.now();
     const rule = normalizeRule({
-      ...(prev || { name: "", urls: "", js: "", css: "" }),
+      ...(prev || { name: "", urls: "", js: "", css: "", notes: "" }),
       ...input,
       flags: { ...(prev ? prev.flags : NEW_RULE_FLAGS), ...input.flags }, // 새 규칙(Claude 가 옵션 없이 만든 것 포함)은 처음 옵션부터
       id: input.id || newId(),
@@ -152,7 +152,7 @@ async function addHistory(rules, by) {
   const { history = {} } = await chrome.storage.local.get("history");
   for (const r of rules) {
     const list = history[r.id] || [];
-    list.unshift({ t: r.updated || Date.now(), by, name: r.name, urls: r.urls, js: r.js, css: r.css, flags: r.flags });
+    list.unshift({ t: r.updated || Date.now(), by, name: r.name, urls: r.urls, js: r.js, css: r.css, notes: r.notes || "", flags: r.flags });
     history[r.id] = list.slice(0, HISTORY_MAX);
   }
   await chrome.storage.local.set({ history });
@@ -167,7 +167,7 @@ export async function revertRule(id, index, by = "revert") {
   const list = await getHistory(id);
   const v = list[index];
   if (!v) throw new Error("그 버전이 없습니다");
-  return saveRule({ id, name: v.name, urls: v.urls, js: v.js, css: v.css, flags: v.flags }, by);
+  return saveRule({ id, name: v.name, urls: v.urls, js: v.js, css: v.css, notes: v.notes || "", flags: v.flags }, by);
 }
 
 export function emptyState() {

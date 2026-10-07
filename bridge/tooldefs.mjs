@@ -74,7 +74,7 @@ export const TOOLS = [
   },
   {
     name: "rule_get",
-    description: "규칙 하나의 전체 내용 (JS, CSS, 옵션, 변환된 URL 패턴, 등록 오류).",
+    description: "규칙 하나의 전체 내용 (JS, CSS, notes(AI 규칙: 사용자가 쓴 화면 수정 의도, 마크다운), 옵션, 변환된 URL 패턴, 등록 오류).",
     inputSchema: obj({ id: { type: "string" } }, ["id"]),
   },
   {
@@ -89,6 +89,7 @@ export const TOOLS = [
       urls: { type: "string" },
       js: { type: "string", description: "전체 JS (일부만 바꿀 때도 전체를 보낸다)" },
       css: { type: "string", description: "전체 CSS" },
+      notes: { type: "string", description: "AI 규칙(마크다운): 이 규칙이 화면을 어떻게 바꾸는지 의도. 비어 있을 때만 초안을 쓰고, 사용자가 쓴 내용은 사용자가 원할 때만 고친다 (전체를 보낸다)" },
       options: {
         type: "object",
         properties: Object.fromEntries(["off", "strictUrl", "isoJS", "isoCSS", "deepJS", "deepCSS", "atStartJS", "onLoadJS", "spaJS", "important", "offJS", "offCSS"].map((k) => [k, { type: "boolean" }])),
@@ -114,4 +115,5 @@ export const INSTRUCTIONS =
   "PagePatch: Edge 에서 사이트마다 사용자 CSS/JS 규칙을 적용하는 확장. 이 도구로 사용자가 보고 있는 페이지를 살펴보고 규칙을 만들고 고친다. " +
   "순서: page_info → page_outline/page_query 로 셀렉터 찾기 → css_preview 로 보여 주기(필요하면 page_screenshot) → 사용자가 좋다고 하면 rule_save → preview_clear. " +
   "같은 사이트 규칙이 있으면 새로 만들지 말고 그 규칙에 더한다(rule_get 으로 지금 내용 먼저). CSS 로 되는 일은 JS 로 하지 않는다. " +
+  "규칙의 notes(AI 규칙)는 사용자가 쓴 화면 수정 의도다. 규칙이 안 먹으면(사이트 UI 가 바뀜) notes 의 의도대로 지금 화면에서 셀렉터를 다시 찾아 CSS·JS 를 고친다. " +
   "해시 같은 자동 생성 class(style_x__a1B2c)보다 id·구조·속성 셀렉터를 쓰고, 꼭 써야 하면 [class^=\"style_x__\"] 처럼. 페이지 스타일을 이기려면 !important.";

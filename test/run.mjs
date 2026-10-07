@@ -16,11 +16,28 @@ import { toItems, fromItems, diffItems, ITEM_MAX } from "../src/syncitems.js";
 import { jsCode, jsSources, cssCode, buildScripts } from "../src/inject.js";
 import { toQwerty, toHangul } from "../src/hangul.js";
 import { jumpKey, variants, ruleCandidates, matchers } from "../src/jump.js";
+import { renderMarkdown } from "../src/markdown.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 let passed = 0;
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
+
+// ── AI 규칙 (notes) ──
+test("AI 규칙: 규칙에 notes 보관 · 비교", () => {
+  assert.equal(normalizeRule({ id: "x", flags: {} }).notes, ""); // 예전 규칙
+  assert.equal(normalizeRule({ id: "x", notes: "## 목적", flags: {} }).notes, "## 목적");
+  const a = normalizeRule({ id: "x", notes: "a", flags: {}, updated: 1 });
+  assert.equal(sameState({ rules: { x: a } }, { rules: { x: { ...a, notes: "b" } } }), false);
+});
+test("AI 규칙 마크다운: 태그 이스케이프 · 목록 · 링크", () => {
+  const html = renderMarkdown("## 목적\n<img src=x onerror=alert(1)>\n\n- 배너\n  - 하위\n1. 하나\n\n[a](https://a.com) [b](javascript:alert(1))");
+  assert.ok(html.includes("<h2>목적</h2>"));
+  assert.ok(html.includes("&lt;img src=x onerror=alert(1)&gt;"));
+  assert.ok(html.includes("<ul><li>배너<ul><li>하위</li></ul></li></ul><ol><li>하나</li></ol>"));
+  assert.ok(html.includes('<a href="https://a.com"'));
+  assert.ok(!html.includes('href="javascript'));
+});
 
 // ── URL ──
 test("원본과 같은 URL 변환", () => {

@@ -32,6 +32,7 @@ const summary = (r, errors = {}) => ({
   options: FLAGS.filter((k) => k !== "off" && r.flags[k]),
   jsLength: r.js.length,
   cssLength: r.css.length,
+  hasNotes: !!r.notes?.trim(),
   updated: new Date(r.updated).toISOString(),
   ...(errors[r.id] ? { error: errors[r.id] } : {}),
 });
@@ -246,7 +247,7 @@ const tools = {
     return { ...r, created: new Date(r.created).toISOString(), updated: new Date(r.updated).toISOString(), matches, excludeMatches, invalid, injectedCss: r.flags.important ? ruleCss(r) : undefined, error: (await ruleErrors())[id] };
   },
 
-  async rule_save({ id, name, urls, js, css, options }) {
+  async rule_save({ id, name, urls, js, css, notes, options }) {
     const state = await getState();
     if (id && (!state.rules[id] || state.rules[id].deleted)) throw new Error(`규칙 없음: ${id}. 새로 만들려면 id 를 빼세요`);
     if (!id && !urls) throw new Error("새 규칙에는 urls 가 필요합니다");
@@ -256,7 +257,7 @@ const tools = {
       flags[k] = !!v;
     }
     const input = { id, flags };
-    for (const [k, v] of Object.entries({ name, urls, js, css })) if (typeof v === "string") input[k] = v;
+    for (const [k, v] of Object.entries({ name, urls, js, css, notes })) if (typeof v === "string") input[k] = v;
     const rule = await saveRule(input, "claude");
     const { errors } = await ctx.refresh();
     const { matches, excludeMatches, invalid } = parseUrls(rule.urls, rule.flags.strictUrl);
@@ -271,7 +272,7 @@ const tools = {
 
   async rule_history({ id }) {
     const list = await getHistory(id);
-    return { versions: list.map((v, index) => ({ index, time: new Date(v.t).toISOString(), by: v.by, name: v.name, urls: v.urls, jsLength: v.js.length, cssLength: v.css.length })) };
+    return { versions: list.map((v, index) => ({ index, time: new Date(v.t).toISOString(), by: v.by, name: v.name, urls: v.urls, jsLength: v.js.length, cssLength: v.css.length, notesLength: (v.notes || "").length })) };
   },
 
   async rule_revert({ id, index }) {
