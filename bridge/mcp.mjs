@@ -8,7 +8,7 @@ import { BRIDGE_FILE, readJson, VERSION } from "./common.mjs";
 import { TOOLS, TAB_TOOLS, INSTRUCTIONS } from "./tooldefs.mjs";
 
 const DEFAULT_TAB = Number(process.env.PAGEPATCH_TAB) || undefined;
-const NOT_RUNNING = "PagePatch 브리지에 연결할 수 없습니다. Edge 가 켜져 있고 PagePatch 설정 → Claude Code 연결이 켜져 있어야 합니다 (처음이면 bridge\\install.ps1 실행)";
+const NOT_RUNNING = "PagePatch 브리지에 연결할 수 없습니다. Edge 가 켜져 있고 PagePatch 설정 → Claude Code 연결이 켜져 있어야 합니다 (처음이면 설정 → AI Code 의 등록 명령 실행)";
 
 let ready = null;
 const waiting = new Map();

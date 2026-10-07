@@ -4,6 +4,7 @@ import { parseUrls } from "./src/urls.js";
 import { FLAGS, NEW_RULE_FLAGS, normalizeUrl } from "./src/model.js";
 import { variants } from "./src/jump.js";
 import { renderMarkdown } from "./src/markdown.js";
+import { setupCommand } from "./src/bridgesetup.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -704,7 +705,7 @@ function message(text, isError) {
 }
 
 // Claude Code
-const BRIDGE_SETUP = "irm https://raw.githubusercontent.com/kwg0424/vibe-pagepatch/main/bridge/setup.ps1 | iex";
+const BRIDGE_SETUP = setupCommand(chrome.runtime.id); // 확장 안의 bridge 파일로 등록 (src/bridgesetup.js)
 const BRIDGE_STATE = {
   connecting: ["연결하는 중…", ""],
   connected: ["연결됨", "ok"],
@@ -723,7 +724,9 @@ function renderBridge() {
     else [text, kind] = ["연결됐지만 Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 연결 프로그램 설치 명령을 다시 실행하세요", "error"];
   }
   setDesc($("#bState"), text, kind);
-  $("#bInstall").hidden = !on || st.state !== "not-installed";
+  const outdated = on && st.state === "connected" && st.outdated;
+  $("#bInstallWhy").textContent = outdated ? "연결 프로그램이 예전 버전입니다. 같은 명령으로 다시 등록하세요" : "처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다";
+  $("#bInstall").hidden = !(on && (st.state === "not-installed" || outdated));
   $("#bRetryWrap").hidden = !on || st.state === "connected" || st.state === "connecting";
   $("#bEvalRow").hidden = !(on && st.state === "connected");
   renderHints();
@@ -871,7 +874,11 @@ $("#bEval").onchange = (e) => send("bridge:config", { patch: { allowEval: e.targ
 $("#bSetupCmd").textContent = BRIDGE_SETUP;
 $("#bCopySetup").onclick = async () => {
   await navigator.clipboard.writeText(BRIDGE_SETUP);
-  toast("복사했습니다. PowerShell 에 붙여 넣고 Enter");
+  toast("복사했습니다. PowerShell 이나 cmd 에 붙여 넣고 Enter");
+};
+$("#bCopySetupMcp").onclick = async () => {
+  await navigator.clipboard.writeText(setupCommand(chrome.runtime.id, "-WithMcp"));
+  toast("복사했습니다. PowerShell 이나 cmd 에 붙여 넣고 Enter");
 };
 $("#bRetry").onclick = async () => {
   await send("bridge:retry");

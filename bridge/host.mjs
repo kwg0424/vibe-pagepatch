@@ -193,7 +193,7 @@ function startChat({ chatId, text, sessionId, tab }) {
     chats.delete(chatId);
     toExt({ type: "chat-end", chatId, ...extra });
   };
-  if (!claude) return end({ error: "Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 bridge\\install.ps1 을 다시 실행하세요" });
+  if (!claude) return end({ error: "Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 PagePatch 설정 → AI Code 의 등록 명령을 다시 실행하세요" });
 
   const mcpConfig = JSON.stringify({
     mcpServers: { pagepatch: { type: "stdio", command: process.execPath, args: [MCP_PATH], env: { PAGEPATCH_TAB: String(tab?.id || "") } } },

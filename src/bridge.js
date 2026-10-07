@@ -7,7 +7,9 @@
 // local: bridge = { enabled, allowEval }
 // session: bridgeStatus = { state, detail, at, claude, hostVersion }
 //   state: off | connecting | connected | not-installed | waiting
+//   outdated: 등록된 연결 프로그램이 이 확장에 든 것보다 예전 버전 → 등록 명령을 다시 실행해야 함
 import { runTool } from "./tools.js";
+import { BRIDGE_VERSION } from "../bridge/version.mjs";
 
 export const HOST_NAME = "com.pagepatch.bridge";
 
@@ -68,7 +70,7 @@ function connect() {
   port = p;
   p.onMessage.addListener(async (msg) => {
     if (msg.type === "hello") {
-      await setStatus("connected", "", { claude: msg.claude || null, hostVersion: msg.version, mcpPort: msg.port });
+      await setStatus("connected", "", { claude: msg.claude || null, hostVersion: msg.version, mcpPort: msg.port, outdated: msg.version !== BRIDGE_VERSION });
     } else if (msg.type === "call") {
       let reply;
       try {

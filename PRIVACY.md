@@ -35,5 +35,5 @@ PagePatch 는 개발자나 제3자에게 어떤 데이터도 보내지 않습니
 
 ## 삭제
 - 확장을 제거하면 브라우저에 저장된 규칙·설정이 지워집니다
-- 연결 프로그램 등록은 `bridge\install.ps1 -Uninstall` 로 지웁니다
+- 연결 프로그램 등록은 `%LOCALAPPDATA%\PagePatch\bridge\install.ps1 -Uninstall` (개발자 모드면 `bridge\install.ps1 -Uninstall`) 로 지웁니다
 - WebDAV 서버의 파일은 사용자의 서버이므로 사용자가 직접 삭제할 수 있습니다

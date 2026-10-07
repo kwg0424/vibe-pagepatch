@@ -236,10 +236,11 @@
         </label>
         <p class="desc" id="bState" hidden></p>
         <div id="bInstall" class="desc" hidden>
-          처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다 (Node.js 22 이상, Claude Code 필요). PowerShell 에 붙여 넣으세요:
+          <span id="bInstallWhy">처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다</span> (Node.js 22 이상, Claude Code 필요).
+          아래 명령을 PowerShell 이나 명령 프롬프트(cmd)에 붙여 넣으세요. 연결 프로그램은 이 확장 안에 들어 있는 파일을 씁니다 (인터넷에서 받지 않음).
           <pre class="code" id="bSetupCmd"></pre>
-          <div class="buttons"><button type="button" id="bCopySetup">복사</button></div>
-          등록한 뒤 <b>다시 확인</b>을 누르세요. 터미널 <code>claude</code> 에서도 쓰려면 README 의 <code>-WithMcp</code> 설치를 보세요.
+          <div class="buttons"><button type="button" id="bCopySetup">복사</button><button type="button" id="bCopySetupMcp" title="터미널에서 실행하는 claude 에서도 PagePatch 도구를 쓰게 같이 등록합니다">터미널 claude 에도 등록 (복사)</button></div>
+          등록한 뒤 <b>다시 확인</b>을 누르세요.
         </div>
         <div class="buttons" id="bRetryWrap" hidden><button type="button" id="bRetry">다시 확인</button></div>
         <label class="row" id="bEvalRow" hidden>

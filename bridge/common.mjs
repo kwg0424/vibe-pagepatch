@@ -7,8 +7,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { BRIDGE_VERSION } from "./version.mjs";
 
-export const VERSION = "1.0.0";
+export const VERSION = BRIDGE_VERSION;
 export const DATA_DIR = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), ".local", "share"), "PagePatch");
 export const BRIDGE_FILE = path.join(DATA_DIR, "bridge.json");
 export const CONFIG_FILE = path.join(DATA_DIR, "config.json");

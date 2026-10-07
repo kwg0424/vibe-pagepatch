@@ -14,7 +14,8 @@ let chat = { sessionId: null, items: [] };
 let running = null; // 진행 중인 chatId
 let currentText = null; // 지금 받아 쓰는 답 (items 안의 객체)
 let sawDelta = false;
-const BRIDGE_SETUP = "irm https://raw.githubusercontent.com/kwg0424/vibe-pagepatch/main/bridge/setup.ps1 | iex"; // options.js 와 같게
+import { setupCommand } from "./src/bridgesetup.js";
+const BRIDGE_SETUP = setupCommand(chrome.runtime.id); // 확장 안의 bridge 파일로 등록 (options.js 와 같게)
 
 const TOOL_LABEL = {
   page_info: "페이지 확인",
@@ -73,12 +74,14 @@ function renderStatus(st) {
     notice("Claude Code 연결이 꺼져 있습니다.<br>", btn("연결 켜기", () => send("bridge:config", { patch: { enabled: true } })));
   } else if (s === "not-installed") {
     notice(
-      `PC 에 연결 프로그램을 한 번 등록해야 합니다 (Node.js 22+, Claude Code 필요). PowerShell 에 붙여 넣으세요:<pre>${BRIDGE_SETUP}</pre>`,
+      `PC 에 연결 프로그램을 한 번 등록해야 합니다 (Node.js 22+, Claude Code 필요). PowerShell 이나 cmd 에 붙여 넣으세요:<pre>${BRIDGE_SETUP}</pre>`,
       btn("복사", () => navigator.clipboard.writeText(BRIDGE_SETUP))
     );
     setup.lastChild.append(" 등록한 뒤 ", btn("다시 확인", () => send("bridge:retry")));
   } else if (s === "connected" && !st.claude) {
-    notice(`Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 PowerShell 에서 다시 실행하세요:<pre>${BRIDGE_SETUP}</pre>`);
+    notice(`Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 PowerShell 이나 cmd 에서 다시 실행하세요:<pre>${BRIDGE_SETUP}</pre>`, btn("복사", () => navigator.clipboard.writeText(BRIDGE_SETUP)));
+  } else if (s === "connected" && st.outdated) {
+    notice(`연결 프로그램이 예전 버전입니다. PowerShell 이나 cmd 에 붙여 넣어 다시 등록하세요:<pre>${BRIDGE_SETUP}</pre>`, btn("복사", () => navigator.clipboard.writeText(BRIDGE_SETUP)));
   }
   updateComposer(s === "connected" && !!st.claude);
 }

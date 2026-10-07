@@ -84,7 +84,8 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
                                                                 └─ 터미널 claude ─ mcp.mjs ┘
 ```
 - `bridge/install.ps1` 로 한 번 등록: `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.pagepatch.bridge` (PagePatch 확장 ID 만 허용). `-WithMcp` 면 터미널 claude 에도 MCP 등록
-- 스토어 설치(zip 에 bridge 없음)는 `bridge/setup.ps1` 한 줄 설치(`irm … | iex`): GitHub main 의 bridge 파일을 `%LOCALAPPDATA%\PagePatch\bridge` 로 받아 그 install.ps1 실행. 설정·사이드바의 '설치 필요' 안내에 이 명령을 보여 줌
+- bridge 파일은 확장 패키지 안에 같이 들어 있다 (바깥 주소에서 받지 않음). 스토어 설치는 설정·사이드바가 보여 주는 등록 명령(`src/bridgesetup.js`, `powershell -EncodedCommand …` → PowerShell · cmd 둘 다 됨)으로: Edge 의 `User Data\<프로필>\Extensions\<확장 ID>\<버전>\bridge\install.ps1` 을 찾아 실행 → install.ps1 이 `%LOCALAPPDATA%\PagePatch\bridge` 로 복사해서 등록 (확장 업데이트로 버전 폴더가 바뀌어도 동작)
+- `bridge/version.mjs` 의 BRIDGE_VERSION: 호스트가 hello 로 알리고, 확장에 든 것과 다르면 `bridgeStatus.outdated` → 설정·사이드바가 같은 명령으로 다시 등록하라고 안내. bridge 파일을 바꾸면 올린다
 - 확장 ID: 개발자 모드는 manifest 의 `key` 로 고정 `ljpifelibjbpdkjmjpalhegmmpopaakn`, 스토어는 `ebpahfbghidgbkmbjhgijokfjmoeccan` (스토어 zip 은 `key` 를 뺌). install.ps1 의 allowed_origins 에 둘 다
 - 호스트는 Edge 가 띄우고 Edge 가 끊으면 끝남. 127.0.0.1 에서 MCP 클라이언트를 받을 때 `bridge.json` 의 토큰 확인, Origin 있는 요청(웹페이지) 거절
 - **사이드바 채팅**: `claude -p --output-format stream-json --include-partial-messages --tools "" --strict-mcp-config --mcp-config <pagepatch> --allowedTools mcp__pagepatch --permission-mode dontAsk --append-system-prompt <SKILL.md>`
@@ -117,7 +118,7 @@ popup.*  options.*  sidepanel.*  ui.css
 src/  model urls css inject store merge sync syncitems import tools bridge unlock jump stay hangul (+ webdav crypto key ← EdgeMark)
 newtab.html newtab.js   (← StayTab)
 inject/  unlock-copy.js unlock-strong.js
-bridge/  host.mjs mcp.mjs ws.mjs common.mjs tooldefs.mjs SKILL.md install.ps1
+bridge/  host.mjs mcp.mjs ws.mjs common.mjs version.mjs tooldefs.mjs SKILL.md install.ps1  (스토어 zip 에도 들어감)
 vendor/ace/  (Ace 1.44, CSS·JS 모드, 테마 2개, 검색, 자동완성)
 tools/  export-from-original.mjs make-icons.mjs
 test/run.mjs
