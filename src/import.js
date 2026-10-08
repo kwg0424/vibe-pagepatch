@@ -53,7 +53,7 @@ function importOriginal(json, now) {
     const flags = {};
     for (const f of meta.flags || []) {
       const k = FLAG_MAP[f] || f;
-      if (FLAGS.includes(k)) flags[k] = true;
+      if (FLAGS.includes(k) || k === "strictUrl") flags[k] = true; // strictUrl 은 normalizeRule 이 주소를 옮길 때만 쓴다
       else dropped[f] = (dropped[f] || 0) + 1;
     }
     // CSS: 원본은 SCSS 소스(scss)와 컴파일 결과(css)를 따로 둔다 → 소스를 쓰고 // 주석만 /* */ 로 바꾼다

@@ -113,7 +113,7 @@ export function buildScripts(rules) {
     const hasJs = runsJs(r);
     const hasCss = runsCss(r) && !r.flags.isoCSS;
     if (!hasJs && !hasCss) continue;
-    const parsed = parseUrls(r.urls, r.flags.strictUrl);
+    const parsed = parseUrls(r.urls, r.flags);
     if (parsed.invalid.length) errors[r.id] = `잘못된 URL 패턴: ${parsed.invalid.join(", ")}`;
     const { matches, excludeMatches, guard } = registrationPatterns(parsed);
     if (!matches.length) {

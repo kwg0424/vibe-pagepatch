@@ -52,8 +52,26 @@ test("parseUrls: 제외·잘못된 패턴", () => {
   const r = parseUrls("example.com, !*://ads.example.com/*", false);
   assert.deepEqual(r.matches, ["https://*.example.com/*"]);
   assert.deepEqual(r.excludeMatches, ["*://ads.example.com/*"]);
-  assert.deepEqual(parseUrls("*://a.com/x, !*://a.com/x/y*", true).excludeMatches, ["*://a.com/x/y*"]);
-  assert.deepEqual(parseUrls("notapattern", true).invalid, ["notapattern"]);
+  assert.deepEqual(parseUrls("*://a.com/x, !*://a.com/x/y*", { strictUrl: true }).excludeMatches, ["*://a.com/x/y*"]);
+  assert.deepEqual(parseUrls("notapattern", { strictUrl: true }).invalid, ["notapattern"]);
+});
+test("주소 방식: 기본(루트만 · /** · *.) · 정규식 · 옛 규칙 옮기기", () => {
+  const B = { urlBasic: true };
+  const m = (urls, flags, url) => ruleMatchesUrl({ urls, flags }, url);
+  assert.ok(m("a.com", B, "https://a.com/") && m("a.com", B, "http://a.com/?x=1"));
+  assert.ok(!m("a.com", B, "https://a.com/b") && !m("a.com", B, "https://c.a.com/"));
+  assert.ok(m("a.com/**", B, "https://a.com/b/c") && !m("a.com/**", B, "https://c.a.com/"));
+  assert.ok(m("*.a.com", B, "https://c.a.com/") && m("*.a.com", B, "https://a.com/"));
+  assert.deepEqual(parseUrls("a.com/a", B).invalid, ["a.com/a"]);
+  assert.ok(m("https://*/*", B, "http://x.test/y"));
+  const R = { urlRegex: true };
+  assert.ok(m("/a\.com\/b/i", R, "https://A.com/b") && parseUrls("a.com", R).invalid.length === 1);
+  const n = normalizeRule({ id: "x", urls: "https://*/*", flags: B });
+  assert.equal(n.urls, "*/*");
+  const o = normalizeRule({ id: "x", urls: "naver.com, !mail.naver.com", flags: {} });
+  assert.ok(o.flags.urlBasic && o.urls === "*.naver.com/**, !mail.naver.com/**");
+  const q = normalizeRule({ id: "x", urls: "https://a.b.com/path", flags: {} });
+  assert.ok(q.flags.urlRegex && !q.flags.urlBasic);
 });
 test("match pattern 매칭", () => {
   const p = compilePattern("*://*.example.com/watch*");
@@ -112,7 +130,7 @@ test("원본 데이터 가져오기", () => {
   assert.equal(report.count, 2);
   const a = state.rules["r:a"];
   assert.equal(a.css, "/* note */\na { color: red; }");
-  assert.ok(a.flags.strictUrl && a.flags.isoCSS && !a.flags.isoJS);
+  assert.ok(a.flags.urlBasic && a.urls === "a.test/**" && a.flags.isoCSS && !a.flags.isoJS); // 옛 strictUrl 규칙은 기본 방식으로 옮겨진다
   assert.equal(a.updated, 1000);
   assert.equal(state.rules["r:b"].css, "b{top:0}");
   assert.ok(state.rules["r:b"].flags.off && state.rules["r:b"].flags.isoJS);

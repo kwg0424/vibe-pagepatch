@@ -82,7 +82,13 @@ button.danger:hover, .btn.danger:hover { border-color: var(--danger); background
   border: 1px solid var(--line); border-radius: 8px;
   background: var(--page); padding: 7px 10px; outline: none;
 }
-select { width: auto; padding: 6px 8px; cursor: pointer; }
+/* 화살표를 직접 그려 오른쪽 여백을 둔다 (기본 화살표는 테두리에 붙는다) */
+select {
+  width: auto; padding: 6px 28px 6px 8px; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px; background-repeat: no-repeat;
+}
 .input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* 체크박스 (다른 확장과 같음) */

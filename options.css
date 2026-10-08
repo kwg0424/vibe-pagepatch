@@ -31,22 +31,23 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 #ruleList > li { margin-bottom: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); overflow: hidden; }
 /* 단일 규칙과 폴더 머리는 같은 높이 (두 줄: 이름 20px + 주소 18px + 위아래 7px). 폴더 안 규칙은 주소 한 줄 그대로 */
 #ruleList > li.rule, #ruleList .folder-head { box-sizing: border-box; min-height: 52px; }
-#ruleList li.rule { padding: 7px 10px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+#ruleList .folder-head { min-height: 50px; } /* 폴더 카드(li)의 위아래 테두리 2px 를 빼서 일반 규칙 카드와 높이를 맞춘다 */
+#ruleList li.rule { padding: 0 10px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
 #ruleList li.rule:hover, #ruleList .folder-head:hover { background: var(--bg-hover); }
-#ruleList li.rule.active { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+#ruleList li.rule.active { background: color-mix(in srgb, var(--ok) 14%, transparent); box-shadow: inset 3px 0 0 var(--ok); }
 #ruleList li .txt { min-width: 0; flex: 1; }
 #ruleList .nm { font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ruleList .ur { font-size: 12px; line-height: 18px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
 #ruleList .folder-head .ur { font-family: var(--font); }
 #ruleList .nm.empty { color: var(--muted); font-weight: 400; }
-#ruleList li.off .nm, #ruleList .folder-head.off .nm { color: var(--muted); text-decoration: line-through; }
+#ruleList li.off .nm, #ruleList .folder-head.off .nm { color: var(--muted); }
 #ruleList .folder-head { padding: 7px 10px; cursor: pointer; display: flex; gap: 8px; align-items: center; background: var(--bg-soft); }
 #ruleList .folder-head .arrow { width: 14px; color: var(--muted); flex: none; }
 #ruleList .folder.open .folder-head { border-bottom: 1px solid var(--line); }
-#ruleList .folder li.rule { padding-left: 32px; }
+#ruleList .folder li.rule { padding: 9px 10px 9px 32px; }
 #ruleList .folder li.rule + li.rule { border-top: 1px solid var(--line); }
 #ruleList .folder li.rule .ur { color: var(--text); }
-#ruleList .folder li.rule.off .ur { color: var(--muted); text-decoration: line-through; }
+#ruleList .folder li.rule.off .ur { color: var(--muted); }
 
 #noRules { padding: 0 20px; }
 
@@ -61,7 +62,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .urlinfo { color: var(--muted); font-family: var(--mono); word-break: break-all; min-height: 18px; }
 .urlinfo .bad { color: var(--danger); }
 .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 13px; min-height: 30px; }
-.opts select { font-size: 13px; padding: 3px 6px; }
+.opts select { font-size: 13px; padding: 3px 28px 3px 6px; }
 .grp { font-size: 11.5px; font-weight: 700; color: var(--muted); }
 .sep { width: 1px; height: 16px; background: var(--line); }
 
@@ -80,7 +81,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .ace { min-height: 160px; border: 1px solid var(--line); border-radius: 8px; }
 .hint { min-height: 18px; }
 .code-head .check { gap: 6px; }
-.code.disabled .code-head b { color: var(--muted); text-decoration: line-through; }
+.code.disabled .code-head b { color: var(--muted); }
 .code.disabled .opts, .code.disabled .ace { opacity: 0.5; } /* 꺼 둔 JS · CSS */
 .codes[hidden] { display: none; }
 

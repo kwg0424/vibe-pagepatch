@@ -180,15 +180,16 @@ function updateComposer(ready = $("#send").dataset.ready === "1") {
   $("#send").textContent = running ? "중지" : "보내기";
   $("#send").classList.toggle("primary", !running);
   $("#send").disabled = !running && !ready;
+  $("#addNotes").disabled = !!running || !ready;
 }
 
-async function submit(text) {
+async function submit(text, label = text) {
   text = text.trim();
   if (!text || running) return;
   const tab = await activeTab();
   running = crypto.randomUUID();
   sawDelta = false;
-  add({ role: "user", text });
+  add({ role: "user", text: label });
   currentText = add({ role: "assistant", text: "" });
   currentText.el.classList.add("typing");
   $("#input").value = "";
@@ -229,6 +230,7 @@ function onEvent(ev) {
     item.status = ev.isError ? "err" : "ok";
     item.result = ev.text;
     refresh(item);
+    if (["css_preview", "preview_clear"].includes(item.name)) syncPreview(); // 미리보기 버튼 상태 맞춤
   }
 }
 
@@ -287,12 +289,43 @@ chrome.storage.session.onChanged.addListener((changes) => {
 
 $("#openSettings").onclick = () => chrome.runtime.openOptionsPage();
 
-$("#clearPreview").onclick = async () => {
+// 미리보기 숨김 ↔ 표시: AI 가 저장 전에 적용한 CSS(<style id="pagepatch-preview">)를 media 로 껐다 켠다 (지우지 않음)
+const PREVIEW_STATE = () => {
+  const s = document.getElementById("pagepatch-preview");
+  return s ? (s.media === "not all" ? "hidden" : "shown") : "none";
+};
+const PREVIEW_TOGGLE = () => {
+  const s = document.getElementById("pagepatch-preview");
+  if (!s) return "none";
+  s.media = s.media === "not all" ? "" : "not all";
+  return s.media === "not all" ? "hidden" : "shown";
+};
+async function previewCall(func) {
   const tab = await activeTab();
-  if (!tab) return;
-  await chrome.scripting
-    .executeScript({ target: { tabId: tab.id }, func: () => document.getElementById("pagepatch-preview")?.remove() })
-    .catch(() => {});
+  if (!tab) return "none";
+  const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func }).catch(() => []);
+  return res?.result || "none";
+}
+function showPreviewState(st) {
+  $("#togglePreview").disabled = st === "none";
+  $("#togglePreview").textContent = st === "hidden" ? "미리보기 표시" : "미리보기 숨김";
+}
+const syncPreview = async () => showPreviewState(await previewCall(PREVIEW_STATE));
+$("#togglePreview").onclick = async () => showPreviewState(await previewCall(PREVIEW_TOGGLE));
+chrome.tabs.onActivated.addListener(() => syncPreview());
+chrome.tabs.onUpdated.addListener((id, change, tab) => tab.windowId === win.id && tab.active && change.status === "complete" && syncPreview());
+syncPreview();
+
+// AI 규칙 추가: 이 대화의 작업 내용을 짧은 마크다운으로 정리해 규칙의 notes 에 넣게 한다 (이미 있으면 날짜·시각 주석을 달아 아래에)
+$("#addNotes").onclick = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  submit(
+    `이 대화의 작업 내용을 AI 규칙(notes)용 마크다운으로 간략히(목적 / 바꾼 것, 눈에 보이는 모양으로) 정리해서 이 페이지에 맞는 규칙의 notes 에 저장해 줘. ` +
+      `rule_get 으로 기존 notes 를 먼저 읽고, 있으면 지우지 말고 맨 아래에 빈 줄 + <!-- ${stamp} --> 주석 + 새 내용을 이어 붙여 전체를 rule_save 로 저장해. 비어 있으면 주석 없이 그냥 작성해. 맞는 규칙이 없으면 저장부터 하자고 말해 줘.`,
+    "AI 규칙 추가"
+  );
 };
 
 $("#input").focus();

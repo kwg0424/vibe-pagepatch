@@ -10,9 +10,10 @@ Edge 확장 **User JavaScript and CSS** (ID `nbhcbdghjpllgmfilhnhkllmkecfmpld`, 
 
 ### URL 패턴
 - 쉼표로 여러 개. `!` 로 시작하면 제외
-- **변환 모드(기본)**: 원본 변환 로직을 그대로 옮김. `naver.com` → `*://*.naver.com/*`, `https://a.b.com/` → `https://a.b.com/*`
-- **URL 그대로(strictUrl)**: match pattern 그대로
-- **정규식**: `/…/플래그`. 주소 전체(location.href)에 검사. 안의 쉼표는 구분자가 아님. `!/…/` 는 제외
+- 입력 방식은 규칙마다 하나 (`urlBasic` · `urlRegex` 플래그)
+- **기본(`urlBasic`, 새 규칙 기본)**: `a.com` → 그 주소 루트만(`/` 와 `/?*`. 스킴은 항상 http·https 둘 다 — 써도 무시하고 저장할 때 지움: `https://*/*` → `*/*`), `a.com/**` → 모든 경로, `*.a.com` → 하위 도메인(a.com 자신 포함), `*` → 모든 사이트. 스킴·포트는 써도 됨. 그 밖의 경로(`a.com/a`)는 잘못된 패턴
+- **옛 규칙**(플래그 없음, `strictUrl` 포함)은 읽을 때 `migrateLegacyUrls` 가 옮김: 호스트 + 모든 경로 꼴(`naver.com` → `*://*.naver.com/*`)이면 기본(`*.naver.com/**`), 경로가 있거나 정규식이 섞이면 전부 정규식 줄로. 원본 확장(3.1.2)의 변환은 옮길 때만 씀
+- **정규식(`urlRegex`)**: `/…/플래그` 만 받음(그 밖의 입력은 잘못된 패턴). 주소 전체(location.href)에 검사. 안의 쉼표는 구분자가 아님. `!/…/` 는 제외
   - 정규식이 있는 규칙은 `*://*/*` 로 넓게 등록하고, 페이지에서 주소를 다시 검사한 뒤 실행
 - 편집기 아래에 변환 결과(적용/제외/잘못된 패턴)를 바로 보여 줌
 
@@ -21,7 +22,7 @@ Edge 확장 **User JavaScript and CSS** (ID `nbhcbdghjpllgmfilhnhkllmkecfmpld`, 
 |---|---|
 | 켜기/끄기 (`off`) | |
 | JS 만 끄기 (`offJS`) · CSS 만 끄기 (`offCSS`) | 편집기의 JS · CSS 제목 옆 체크박스. 코드는 그대로 두고 그쪽만 넣지 않음 (체크 = 켜짐) |
-| URL 그대로 (`strictUrl`) | |
+| 주소 방식 (`urlBasic` · `urlRegex`) | 기본 / 정규식 중 하나 |
 | JS 격리 실행 (`isoJS`) | `USER_SCRIPT` world. 끄면 `MAIN` (페이지 변수·함수 사용) |
 | JS 모든 프레임 (`deepJS`) | iframe 에도 (프레임마다 주소 검사) |
 | JS 실행 시점 | 문서 준비 후(`document_end`) / 일찍(`atStartJS`, `document_start`) / **페이지 로드 후(`onLoadJS`, window load, 새 규칙 기본)** |

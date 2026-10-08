@@ -81,8 +81,10 @@ export const TOOLS = [
     name: "rule_save",
     description:
       "규칙을 만들거나(id 없이) 고친다(id 와 바꿀 필드만). 저장하면 바로 적용되고 변경 기록이 남는다. " +
-      "urls: 쉼표로 여러 개, !로 시작하면 제외, /정규식/플래그 는 주소 전체(location.href)에 정규식 검사(안의 쉼표 괜찮음). 기본은 변환 모드(naver.com → *://*.naver.com/*), options.strictUrl 이면 match pattern 그대로. " +
-      "options: off, strictUrl, isoJS(격리 실행), isoCSS(insertCSS 로 강제), deepJS/deepCSS(모든 프레임), atStartJS(document_start) 또는 onLoadJS(window load 뒤), spaJS(SPA 로 주소가 바뀌면 다시 실행. 떠날 때 규칙의 PagePatch.onLeave(fn) 이 불림), important(자동 !important), offJS · offCSS(이 규칙의 JS · CSS 만 끄기, 코드는 그대로).",
+      "urls: 쉼표로 여러 개, !로 시작하면 제외. 입력 방식은 규칙마다 하나: 기본(options.urlBasic, 새 규칙 기본) 또는 정규식(options.urlRegex). " +
+      "기본: a.com(그 주소 루트만, http·https 둘 다) · a.com/**(모든 경로) · *.a.com(하위 도메인, a.com 포함) · *(모든 사이트). 스킴은 써도 무시되고 저장 때 지워진다. a.com/a 같은 경로는 못 쓴다(정규식 사용). " +
+      "정규식: /정규식/플래그 만 쓴다. 주소 전체(location.href)에 검사(안의 쉼표 괜찮음). " +
+      "options: off, urlBasic, urlRegex, isoJS(격리 실행), isoCSS(insertCSS 로 강제), deepJS/deepCSS(모든 프레임), atStartJS(document_start) 또는 onLoadJS(window load 뒤), spaJS(SPA 로 주소가 바뀌면 다시 실행. 떠날 때 규칙의 PagePatch.onLeave(fn) 이 불림), important(자동 !important), offJS · offCSS(이 규칙의 JS · CSS 만 끄기, 코드는 그대로).",
     inputSchema: obj({
       id: { type: "string", description: "고칠 규칙 id. 새로 만들면 빼기" },
       name: { type: "string" },
@@ -92,7 +94,7 @@ export const TOOLS = [
       notes: { type: "string", description: "AI 규칙(마크다운): 이 규칙이 화면을 어떻게 바꾸는지 의도. 비어 있을 때만 초안을 쓰고, 사용자가 쓴 내용은 사용자가 원할 때만 고친다 (전체를 보낸다)" },
       options: {
         type: "object",
-        properties: Object.fromEntries(["off", "strictUrl", "isoJS", "isoCSS", "deepJS", "deepCSS", "atStartJS", "onLoadJS", "spaJS", "important", "offJS", "offCSS"].map((k) => [k, { type: "boolean" }])),
+        properties: Object.fromEntries(["off", "urlBasic", "urlRegex", "isoJS", "isoCSS", "deepJS", "deepCSS", "atStartJS", "onLoadJS", "spaJS", "important", "offJS", "offCSS"].map((k) => [k, { type: "boolean" }])),
         additionalProperties: false,
       },
     }),

@@ -5,7 +5,8 @@
 //      | 삭제됨: { id, deleted, updated }   (다른 기기에 삭제를 전하는 표시. 30일 뒤 정리)
 // flags:
 //   off        규칙 끄기
-//   strictUrl  URL 을 변환하지 않고 그대로 쓰기
+//   urlBasic   주소 입력 방식 '기본': a.com(루트만) · a.com/**(모든 경로) · *.a.com(하위 도메인). src/urls.js
+//   urlRegex   주소 입력 방식 '정규식': /정규식/플래그 만. 둘 다 없는 옛 규칙(strictUrl 포함)은 읽을 때 migrateLegacyUrls 가 옮김
 //   isoJS      JS 를 격리 환경(USER_SCRIPT)에서 실행. 끄면 페이지 환경(MAIN)
 //   isoCSS     CSS 를 scripting.insertCSS 로 넣기 (페이지가 못 지움). 끄면 <style> 태그
 //   deepJS     JS 를 모든 프레임에
@@ -21,10 +22,12 @@
 //   sites: 복사 제한 해제 { "example.com": { copy, strong } }. 둘 다 끈 사이트는 두지 않는다.
 //          설정과 같이 동기화된다 (브라우저 동기화의 settings 항목 8 KB → 사이트 200개쯤까지)
 
-export const FLAGS = ["off", "strictUrl", "isoJS", "isoCSS", "deepJS", "deepCSS", "atStartJS", "onLoadJS", "spaJS", "important", "offJS", "offCSS"];
+import { migrateLegacyUrls, normalizeBasicUrls } from "./urls.js";
+
+export const FLAGS =["off", "urlBasic", "urlRegex", "isoJS", "isoCSS", "deepJS", "deepCSS", "atStartJS", "onLoadJS", "spaJS", "important", "offJS", "offCSS"];
 export const TOMBSTONE_DAYS = 30;
 // 새 규칙의 처음 옵션: JS 는 페이지 로드 후(onload), CSS 는 자동 !important. 나머지는 꺼짐 (이미 있는 규칙은 그대로)
-export const NEW_RULE_FLAGS = { onLoadJS: true, important: true };
+export const NEW_RULE_FLAGS = { onLoadJS: true, important: true, urlBasic: true };
 
 export function newId() {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -38,20 +41,23 @@ export function normalizeFlags(f) {
   const flags = {};
   for (const k of FLAGS) flags[k] = !!f?.[k];
   if (flags.atStartJS) flags.onLoadJS = false; // 실행 시점은 하나
+  if (flags.urlRegex) flags.urlBasic = false; // 주소 입력 방식도 하나
   return flags;
 }
 
 export function normalizeRule(r) {
   if (!r || typeof r.id !== "string" || !r.id) return null;
   if (r.deleted) return { id: r.id, deleted: time(r.deleted) || time(r.updated), updated: time(r.updated) || time(r.deleted) };
+  const moved = migrateLegacyUrls(str(r.urls), r.flags); // 옛 규칙(주소 방식 플래그 없음)은 기본/정규식으로 옮긴다
+  const flags = normalizeFlags(moved ? { ...r.flags, ...moved.flags } : r.flags);
   return {
     id: r.id,
     name: str(r.name),
-    urls: str(r.urls),
+    urls: flags.urlBasic ? normalizeBasicUrls(moved ? moved.urls : str(r.urls)) : moved ? moved.urls : str(r.urls), // 기본 방식은 스킴을 지워 저장
     js: str(r.js),
     css: str(r.css),
     notes: str(r.notes),
-    flags: normalizeFlags(r.flags),
+    flags,
     created: time(r.created) || time(r.updated),
     updated: time(r.updated),
   };

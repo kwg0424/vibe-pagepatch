@@ -106,6 +106,9 @@ function readForm() {
   const flags = {};
   for (const box of $$("[data-flag]")) flags[box.dataset.flag] = box.checked;
   for (const box of $$("[data-flag-on]")) flags[box.dataset.flagOn] = !box.checked; // JS · CSS 제목 옆: 체크 = 켜짐 (flag 는 offJS · offCSS)
+  const mode = $("#fUrlMode").value;
+  flags.urlBasic = mode === "basic";
+  flags.urlRegex = mode === "regex";
   flags.off = !!current?.original?.flags.off; // 활성화는 왼쪽 목록에서
   flags.atStartJS = $("#fTiming").value === "start";
   flags.onLoadJS = $("#fTiming").value === "load";
@@ -138,6 +141,8 @@ function setAiMode(on) {
   $("#codePane").hidden = on;
   $("#notesPane").hidden = !on;
   $("#aiBtn").classList.toggle("active", on);
+  $("#delete").textContent = on ? "비우기" : "삭제"; // AI 규칙을 보는 중에는 규칙 삭제 대신 AI 규칙 내용 비우기
+  $("#delete").disabled = on ? false : !current?.id;
   editor.resize();
   if (on) editors.notes.focus();
 }
@@ -164,6 +169,12 @@ function updateCounts() {
   $("#jsCount").textContent = n(sessions.js.getValue());
 }
 
+const URL_PLACEHOLDERS = {
+  basic: "주소 (쉼표로 여러 개, !로 제외) 예: a.com, a.com/**, *.a.com, !b.a.com",
+  regex: "정규식 (쉼표로 여러 개, !로 제외) 예: /youtube\\.com\\/(watch|shorts)/i",
+};
+const updateUrlPlaceholder = () => ($("#fUrls").placeholder = URL_PLACEHOLDERS[$("#fUrlMode").value]);
+
 function updateUrlInfo() {
   const { urls, flags } = readForm();
   const el = $("#urlInfo");
@@ -171,7 +182,7 @@ function updateUrlInfo() {
     el.textContent = "주소 패턴을 입력하세요";
     return;
   }
-  const { matches, excludeMatches, regex, excludeRegex, invalid } = parseUrls(urls, flags.strictUrl);
+  const { matches, excludeMatches, regex, excludeRegex, invalid } = parseUrls(urls, flags);
   const rx = (list) => list.map((x) => `/${x.source}/${x.flags}`);
   const parts = [];
   if (matches.length || regex.length) parts.push(`적용: ${[...matches, ...rx(regex)].join(", ")}`);
@@ -180,7 +191,8 @@ function updateUrlInfo() {
   if (invalid.length) {
     const bad = document.createElement("span");
     bad.className = "bad";
-    bad.textContent = `${parts.length ? "   ·   " : ""}잘못된 패턴: ${invalid.join(", ")}`;
+    const why = flags.urlBasic ? " (기본 방식은 a.com · a.com/** · *.a.com 만 됩니다. 경로·정규식은 '정규식'을 쓰세요)" : flags.urlRegex ? " (/정규식/플래그 모양이어야 합니다)" : "";
+    bad.textContent = `${parts.length ? "   ·   " : ""}잘못된 패턴: ${invalid.join(", ")}${why}`;
     el.append(bad);
   }
 }
@@ -189,6 +201,8 @@ function fillForm(rule) {
   loadingForm = true;
   $("#fName").value = rule.name;
   $("#fUrls").value = rule.urls;
+  $("#fUrlMode").value = rule.flags.urlRegex ? "regex" : "basic";
+  updateUrlPlaceholder();
   for (const box of $$("[data-flag]")) box.checked = !!rule.flags[box.dataset.flag];
   for (const box of $$("[data-flag-on]")) box.checked = !rule.flags[box.dataset.flagOn];
   $("#fTiming").value = rule.flags.atStartJS ? "start" : rule.flags.onLoadJS ? "load" : "end";
@@ -200,7 +214,7 @@ function fillForm(rule) {
   const err = rule.id && data.errors[rule.id];
   $("#ruleError").textContent = err || "";
   $("#ruleError").hidden = !err;
-  $("#delete").disabled = !rule.id;
+  $("#delete").disabled = aiMode ? false : !rule.id;
   $("#historyBtn").disabled = !rule.id;
   onEdit();
 }
@@ -222,7 +236,15 @@ function confirmLeave() {
 }
 
 for (const el of [$("#fName"), $("#fUrls")]) el.addEventListener("input", onEdit);
-for (const el of [$("#fTiming"), ...$$("[data-flag]"), ...$$("[data-flag-on]")]) el.addEventListener("change", onEdit);
+$("#fUrlMode").addEventListener("change", updateUrlPlaceholder);
+for (const el of [$("#fUrlMode"), $("#fTiming"), ...$$("[data-flag]"), ...$$("[data-flag-on]")]) el.addEventListener("change", onEdit);
+// 실행 옵션(체크·실행 시점)은 바꾸는 즉시 저장 (이미 있는 규칙만. 새 규칙은 주소를 쓰고 저장할 때). 편집 중인 코드·주소도 같이 저장된다
+const AUTO_SAVE_FLAGS = ["isoJS", "deepJS", "spaJS", "isoCSS", "deepCSS", "important"];
+for (const el of [$("#fTiming"), ...AUTO_SAVE_FLAGS.map((k) => $(`[data-flag="${k}"]`))]) {
+  el.addEventListener("change", () => {
+    if (current?.id && $("#fUrls").value.trim()) save();
+  });
+}
 window.addEventListener("beforeunload", (e) => {
   if (isDirty()) e.preventDefault();
 });
@@ -265,6 +287,11 @@ $("#cancel").onclick = () => {
 };
 
 $("#delete").onclick = async () => {
+  if (aiMode) {
+    // 비우기: AI 규칙 내용만 지운다 (저장해야 반영. 저장 전엔 '변경 취소'로 되돌릴 수 있음)
+    if (sessions.notes.getValue() && confirm("AI 규칙 내용을 모두 지울까요? (저장해야 반영됩니다)")) sessions.notes.setValue("");
+    return;
+  }
   if (!current?.id || !confirm(`"${current.original.name || current.original.urls}" 규칙을 삭제할까요?`)) return;
   await send("rule:delete", { id: current.id });
   current = null;

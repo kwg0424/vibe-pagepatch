@@ -28,7 +28,7 @@ powershell -ExecutionPolicy Bypass -File bridge\install.ps1 -Uninstall # 등록 
 - 사이드바의 Claude 는 PagePatch 도구만 씁니다 (파일 읽기·쓰기, 명령 실행 없음)
 
 ## 규칙
-- **주소**: `naver.com`(하위 도메인까지), `*://search.naver.com/*`, `!` 로 제외, `/정규식/` (주소 전체에 검사)
+- **주소**: 규칙마다 `기본` / `정규식` 중 선택. 기본은 `a.com`(그 주소 루트만), `a.com/**`(모든 경로), `*.a.com`(하위 도메인), `!` 로 제외. 정규식은 `/…/플래그` (주소 전체에 검사)
 - **JS · CSS 따로 켜고 끄기**: 편집기의 JS · CSS 제목 옆 체크박스 (코드는 그대로 두고 그쪽만 적용 안 함)
 - **JS 실행 시점**: 페이지 로드 후(onload, 새 규칙 기본) / 문서 준비 후 / 일찍. 새 규칙은 CSS **자동 !important** 도 켜진 채로 시작
 - **SPA 이동 시 다시 실행**: 유튜브처럼 새로고침 없이 주소만 바뀌어도 다시 실행. 떠날 때 `PagePatch.onLeave(() => …)`

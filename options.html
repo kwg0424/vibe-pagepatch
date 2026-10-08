@@ -45,8 +45,8 @@
           <span class="muted small" id="dirtyMark"></span>
           <button class="btn primary" id="save" title="Ctrl+S">저장</button>
           <button class="btn" id="cancel" title="저장 안 한 변경 버리기">변경 취소</button>
-          <button class="btn" id="aiBtn" title="화면을 어떻게 바꾸려는지 마크다운으로 적어 둡니다. 사이트 UI 가 바뀌어 CSS·JS 가 깨지면 AI 가 이걸 보고 다시 맞춥니다">AI 규칙</button>
           <button class="btn" id="historyBtn">기록</button>
+          <button class="btn" id="aiBtn" title="화면을 어떻게 바꾸려는지 마크다운으로 적어 둡니다. 사이트 UI 가 바뀌어 CSS·JS 가 깨지면 AI 가 이걸 보고 다시 맞춥니다">AI 규칙</button>
           <button class="btn danger" id="delete">삭제</button>
         </div>
 
@@ -56,8 +56,10 @@
         <div id="ruleError" class="notice error" hidden></div>
 
         <div class="frow">
-          <input class="input mono" id="fUrls" placeholder="주소 패턴 (쉼표로 여러 개, !로 시작하면 제외, /정규식/) 예: naver.com, *://search.naver.com/*, /youtube\.com\/(watch|shorts)/">
-          <label class="check" title="주소를 변환하지 않고 match pattern 그대로 씁니다"><input type="checkbox" data-flag="strictUrl"> URL 그대로</label>
+          <select id="fUrlMode" title="주소를 쓰는 방식">
+            <option value="basic">기본</option>
+            <option value="regex">정규식</option>          </select>
+          <input class="input mono" id="fUrls">
         </div>
         <div class="urlinfo small" id="urlInfo"></div>
 

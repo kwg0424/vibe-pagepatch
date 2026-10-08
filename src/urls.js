@@ -5,7 +5,8 @@
 //   !…                   → 제외 (excludeMatches)
 //   /정규식/플래그        → 주소 전체(location.href)에 정규식 검사. 예: /^https:\/\/(www\.)?youtube\.com\/(watch|shorts)/i
 //                          정규식 안의 쉼표는 구분자로 보지 않는다. !/…/ 는 제외
-// strict(URL 그대로 쓰기)면 변환하지 않는다 (정규식은 그대로 정규식).
+// 위는 옛 '기존 방식'(옮기는 데만 씀 — migrateLegacyUrls). 규칙은 flags.urlBasic(기본) / flags.urlRegex(정규식) 중 하나 — 아래 basicPatterns · parseUrls.
+// 옛 방식에서 strictUrl 이면 변환하지 않았다.
 
 export function convertPattern(u) {
   if (u === "*") return "https://*/*";
@@ -62,8 +63,33 @@ export function splitUrlItems(text) {
 
 const REGEX_ITEM = /^!?\/([\s\S]+)\/([a-z]*)$/i;
 
+// 기본 방식 한 항목 → match pattern 목록 (안 되면 null)
+//   a.com → 루트만 · a.com/** · a.com/* → 모든 경로 · *.a.com → 하위 도메인 (a.com 자신 포함, 브라우저 규칙) · * → 모든 사이트
+//   스킴은 항상 http · https 둘 다. 앞에 써도 무시하고 저장할 때 지운다(normalizeBasicUrls). 포트(:3000)는 써도 된다. 그 밖의 경로는 받지 않는다
+const BASIC_ITEM = /^(?:(https?|\*):\/\/)?(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(:\d+)?(\/\*\*?|\/)?$/i;
+function basicPatterns(item) {
+  const m = BASIC_ITEM.exec(item);
+  if (!m) return null;
+  const [, , host, port = "", tail = ""] = m; // 스킴은 써도 무시한다 (항상 http · https 둘 다)
+  const base = `*://${host.toLowerCase()}${port}`;
+  const list = host === "*" || tail.startsWith("/*") ? [`${base}/*`] : [`${base}/`, `${base}/?*`]; // 루트: 쿼리가 붙어도
+  return list.every(isValidMatchPattern) ? list : null;
+}
+
+// 기본 방식 주소 글을 저장 모양으로: 스킴을 지운다 (https://*/* → */*). 올바르지 않은 항목은 그대로 둔다
+export function normalizeBasicUrls(text) {
+  return splitUrlItems(text)
+    .map((item) => {
+      const bang = item.startsWith("!") ? "!" : "";
+      const rest = item.slice(bang.length).trim().replace(/^(https?|\*):\/\//i, "");
+      return basicPatterns(rest) ? bang + rest : item;
+    })
+    .join(", ");
+}
+
 // → { matches, excludeMatches, regex: [{source, flags}], excludeRegex: [...], invalid: [잘못된 패턴] }
-export function parseUrls(text, strict = false) {
+// flags: 규칙의 flags. urlRegex 면 /정규식/ 만, 아니면 기본 방식. (둘 다 없는 옛 규칙은 normalizeRule 이 먼저 옮기므로 여기 오지 않는다. 옮길 때만 옛 방식으로 읽음)
+export function parseUrls(text, flags = {}) {
   const matches = [];
   const excludeMatches = [];
   const regex = [];
@@ -72,7 +98,11 @@ export function parseUrls(text, strict = false) {
   for (const item of splitUrlItems(text)) {
     const exclude = item.startsWith("!");
     const re = REGEX_ITEM.exec(item);
-    if (re) {
+    if (flags.urlRegex || (re && !flags.urlBasic)) {
+      if (!re) {
+        invalid.push(item);
+        continue;
+      }
       try {
         new RegExp(re[1], re[2]);
         (exclude ? excludeRegex : regex).push({ source: re[1], flags: re[2] });
@@ -81,11 +111,42 @@ export function parseUrls(text, strict = false) {
       }
       continue;
     }
-    const pattern = strict ? item.replace(/^!/, "") : convertPattern(item);
+    if (flags.urlBasic) {
+      const list = basicPatterns(item.replace(/^!\s*/, ""));
+      if (!list) invalid.push(item);
+      else (exclude ? excludeMatches : matches).push(...list);
+      continue;
+    }
+    const pattern = flags.strictUrl ? item.replace(/^!/, "") : convertPattern(item);
     if (!isValidMatchPattern(pattern)) invalid.push(pattern);
     else (exclude ? excludeMatches : matches).push(pattern);
   }
   return { matches, excludeMatches, regex, excludeRegex, invalid };
+}
+
+// '기존 방식'(urlBasic · urlRegex 둘 다 없는 옛 규칙)을 새 방식으로 옮긴다. 읽을 때마다 normalizeRule 이 부른다.
+// 주소가 '호스트 + 모든 경로' 꼴이면 기본(a.com/**), 아니면 정규식으로 바꾼다. → { urls, flags: {urlBasic, urlRegex} } | null(이미 새 방식)
+const PLAIN_PATTERN = /^(\*|https?):\/\/(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(:\d+)?\/\*$/i;
+export function migrateLegacyUrls(urls, flags) {
+  if (flags?.urlBasic || flags?.urlRegex) return null;
+  const p = parseUrls(urls, { strictUrl: !!flags?.strictUrl });
+  const groups = [["", p.matches, p.regex], ["!", p.excludeMatches, p.excludeRegex]];
+  const useRegex = p.regex.length || p.excludeRegex.length || [...p.matches, ...p.excludeMatches].some((x) => !PLAIN_PATTERN.test(x));
+  const lines = [];
+  for (const [bang, patterns, regexes] of groups) {
+    for (const x of patterns) {
+      if (!useRegex) {
+        const [, , host, port = ""] = PLAIN_PATTERN.exec(x);
+        lines.push(`${bang}${host}${port}/**`);
+      } else {
+        const pr = patternRegex(x);
+        if (pr) lines.push(`${bang}/${pr[0].replace(/\//g, "\\/")}/i`);
+      }
+    }
+    for (const x of regexes) lines.push(`${bang}/${x.source}/${x.flags}`);
+  }
+  lines.push(...p.invalid); // 못 옮기는 항목은 그대로 둔다 (편집기에서 잘못된 패턴으로 보인다)
+  return { urls: lines.join(", "), flags: { urlBasic: !useRegex, urlRegex: !!useRegex } };
 }
 
 // 등록할 match pattern. 정규식이 들어 있으면 모든 http(s) 페이지에 넣고 실행할 때 urlGuard 로 거른다
@@ -154,7 +215,7 @@ export function compilePattern(p) {
 
 // 규칙의 URL 이 이 주소에 해당하는지 (match pattern 또는 정규식, 제외 빼고)
 export function ruleMatchesUrl(rule, url) {
-  const p = parseUrls(rule.urls, rule.flags?.strictUrl);
+  const p = parseUrls(rule.urls, rule.flags);
   const rx = (x) => {
     try {
       return new RegExp(x.source, x.flags).test(url);

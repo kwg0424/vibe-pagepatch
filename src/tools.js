@@ -133,6 +133,7 @@ function setPreviewInPage(css) {
     s.id = "pagepatch-preview";
   }
   s.textContent = css;
+  s.media = ""; // 숨겨 둔 상태였어도 새 미리보기는 보이게
   (document.head || document.documentElement).appendChild(s); // 맨 뒤 → 다른 스타일보다 우선
   return { applied: true };
 }
@@ -243,7 +244,7 @@ const tools = {
     const state = await getState();
     const r = state.rules[id];
     if (!r || r.deleted) throw new Error(`규칙 없음: ${id}`);
-    const { matches, excludeMatches, invalid } = parseUrls(r.urls, r.flags.strictUrl);
+    const { matches, excludeMatches, invalid } = parseUrls(r.urls, r.flags);
     return { ...r, created: new Date(r.created).toISOString(), updated: new Date(r.updated).toISOString(), matches, excludeMatches, invalid, injectedCss: r.flags.important ? ruleCss(r) : undefined, error: (await ruleErrors())[id] };
   },
 
@@ -260,7 +261,7 @@ const tools = {
     for (const [k, v] of Object.entries({ name, urls, js, css, notes })) if (typeof v === "string") input[k] = v;
     const rule = await saveRule(input, "claude");
     const { errors } = await ctx.refresh();
-    const { matches, excludeMatches, invalid } = parseUrls(rule.urls, rule.flags.strictUrl);
+    const { matches, excludeMatches, invalid } = parseUrls(rule.urls, rule.flags);
     return {
       rule: summary(rule, errors),
       matches,
