@@ -54,6 +54,16 @@ for (const b of $$("[data-goto]")) b.onclick = () => (location.hash = b.dataset.
 ace.config.set("basePath", "vendor/ace");
 const dark = matchMedia("(prefers-color-scheme: dark)");
 const theme = () => (dark.matches ? "ace/theme/one_dark" : "ace/theme/chrome");
+// 줄 끝의 띄어쓰기·탭을 지운다 (줄 단위로 지워 실행 취소와 커서가 그대로 유지됨)
+function trimTrailingSpaces(session) {
+  const doc = session.getDocument();
+  for (let row = 0; row < doc.getLength(); row++) {
+    const line = doc.getLine(row);
+    const end = line.replace(/[ \t]+$/, "").length;
+    if (end < line.length) doc.removeInLine(row, end, line.length);
+  }
+}
+
 // CSS · JS 편집기 두 개를 나란히
 const editors = {};
 const sessions = {};
@@ -73,6 +83,7 @@ for (const [kind, el, mode] of [["css", "aceCss", "ace/mode/css"], ["js", "aceJs
   });
   ed.commands.addCommand({ name: "save", bindKey: { win: "Ctrl-S", mac: "Command-S" }, exec: () => save() });
   ed.session.on("change", () => !loadingForm && onEdit());
+  ed.on("blur", () => trimTrailingSpaces(ed.session)); // 입력 중에는 두고, 편집기를 벗어나거나 저장할 때 줄 끝 공백을 지운다
   editors[kind] = ed;
   sessions[kind] = ed.session;
 }
@@ -170,7 +181,7 @@ function updateCounts() {
 }
 
 const URL_PLACEHOLDERS = {
-  basic: "주소 (쉼표로 여러 개, !로 제외) 예: a.com, a.com/**, *.a.com, !b.a.com",
+  basic: "주소 (쉼표로 여러 개, !로 제외) 예: a.com, a.com/**, *.a.com, a.com/@*/videos, !b.a.com",
   regex: "정규식 (쉼표로 여러 개, !로 제외) 예: /youtube\\.com\\/(watch|shorts)/i",
 };
 const updateUrlPlaceholder = () => ($("#fUrls").placeholder = URL_PLACEHOLDERS[$("#fUrlMode").value]);
@@ -191,7 +202,7 @@ function updateUrlInfo() {
   if (invalid.length) {
     const bad = document.createElement("span");
     bad.className = "bad";
-    const why = flags.urlBasic ? " (기본 방식은 a.com · a.com/** · *.a.com 만 됩니다. 경로·정규식은 '정규식'을 쓰세요)" : flags.urlRegex ? " (/정규식/플래그 모양이어야 합니다)" : "";
+    const why = flags.urlBasic ? " (기본 방식은 a.com · a.com/** · *.a.com · a.com/경로 · a.com/*/videos 모양만 됩니다. 그 밖은 '정규식'을 쓰세요)" : flags.urlRegex ? " (/정규식/플래그 모양이어야 합니다)" : "";
     bad.textContent = `${parts.length ? "   ·   " : ""}잘못된 패턴: ${invalid.join(", ")}${why}`;
     el.append(bad);
   }
@@ -211,9 +222,6 @@ function fillForm(rule) {
   sessions.notes.setValue(rule.notes || "");
   loadingForm = false;
   $("#changedNotice").hidden = true;
-  const err = rule.id && data.errors[rule.id];
-  $("#ruleError").textContent = err || "";
-  $("#ruleError").hidden = !err;
   $("#delete").disabled = aiMode ? false : !rule.id;
   $("#historyBtn").disabled = !rule.id;
   onEdit();
@@ -260,6 +268,8 @@ let saving = false;
 
 async function save() {
   if (!current) return;
+  trimTrailingSpaces(sessions.css);
+  trimTrailingSpaces(sessions.js);
   const f = readForm();
   if (!f.urls) {
     toast("주소 패턴을 입력하세요");
@@ -749,6 +759,7 @@ function renderBridge() {
   if (on && st.state === "connected") {
     if (st.claude) text += ` · ${st.claude}`;
     else [text, kind] = ["연결됐지만 Claude Code(claude)를 찾지 못했습니다. 설치한 뒤 연결 프로그램 설치 명령을 다시 실행하세요", "error"];
+    if (st.claude && st.outdated) [text, kind] = [`${text} · 연결 프로그램이 예전 버전입니다`, "warn"]; // 노란색
   }
   setDesc($("#bState"), text, kind);
   const outdated = on && st.state === "connected" && st.outdated;

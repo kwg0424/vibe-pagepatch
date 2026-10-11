@@ -65,14 +65,22 @@ const REGEX_ITEM = /^!?\/([\s\S]+)\/([a-z]*)$/i;
 
 // 기본 방식 한 항목 → match pattern 목록 (안 되면 null)
 //   a.com → 루트만 · a.com/** · a.com/* → 모든 경로 · *.a.com → 하위 도메인 (a.com 자신 포함, 브라우저 규칙) · * → 모든 사이트
-//   스킴은 항상 http · https 둘 다. 앞에 써도 무시하고 저장할 때 지운다(normalizeBasicUrls). 포트(:3000)는 써도 된다. 그 밖의 경로는 받지 않는다
-const BASIC_ITEM = /^(?:(https?|\*):\/\/)?(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(:\d+)?(\/\*\*?|\/)?$/i;
+//   경로를 쓰면 그 경로만: a.com/a · a.com/@x/videos. 경로의 *는 글자 아무거나(/ 도 포함): a.com/*/videos. 쿼리(?…)가 붙어도 맞는다.
+//   스킴은 항상 http · https 둘 다. 앞에 써도 무시하고 저장할 때 지운다(normalizeBasicUrls). 포트(:3000)는 써도 된다
+const BASIC_ITEM = /^(?:(https?|\*):\/\/)?(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(:\d+)?(\/\S*)?$/i;
 function basicPatterns(item) {
   const m = BASIC_ITEM.exec(item);
   if (!m) return null;
-  const [, , host, port = "", tail = ""] = m; // 스킴은 써도 무시한다 (항상 http · https 둘 다)
+  const [, , host, port = "", path = ""] = m; // 스킴은 써도 무시한다 (항상 http · https 둘 다)
   const base = `*://${host.toLowerCase()}${port}`;
-  const list = host === "*" || tail.startsWith("/*") ? [`${base}/*`] : [`${base}/`, `${base}/?*`]; // 루트: 쿼리가 붙어도
+  let list;
+  if (!path && host === "*") list = [`${base}/*`];
+  else if (!path || path === "/") list = [`${base}/`, `${base}/?*`]; // 루트: 쿼리가 붙어도
+  else if (/^\/\*+$/.test(path)) list = [`${base}/*`];
+  else {
+    const p = path.replace(/\*+/g, "*");
+    list = p.endsWith("*") ? [base + p] : [base + p, `${base}${p}?*`]; // 끝이 * 가 아니면 쿼리가 붙은 주소도
+  }
   return list.every(isValidMatchPattern) ? list : null;
 }
 

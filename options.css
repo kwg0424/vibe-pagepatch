@@ -145,6 +145,7 @@ h2 { margin: 0 0 10px; font-size: 16px; }
 .desc { margin: 4px 0 12px; color: var(--muted); font-size: 13px; }
 .desc.error { color: var(--danger); }
 .desc.ok { color: var(--ok); }
+.desc.warn { color: var(--warn); }
 .steps { margin: 4px 0 12px; padding-left: 20px; font-size: 13px; }
 pre.code { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; margin: 6px 0; color: var(--text); }
 #btn-edit-connect { margin-left: auto; } /* 접속 정보 변경 · 전환은 오른쪽에 묶음 */

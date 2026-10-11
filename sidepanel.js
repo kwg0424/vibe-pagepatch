@@ -50,8 +50,10 @@ renderStatus(state.bridgeStatus || { state: "off" });
 function renderStatus(st) {
   const s = st.state;
   // 초록 = Claude Code 연결됨, 빨강 = 그 밖 (연결 중·설치 필요·꺼짐 등은 마우스를 올리면)
-  $("#dot").className = `dot ${s === "connected" && st.claude ? "ok" : "err"}`;
-  $("#dot").title = { off: "Claude Code 연결 꺼짐", connecting: "연결 중", connected: st.claude ? "Claude Code 연결됨" : "claude 를 찾지 못함", "not-installed": "설치 필요", waiting: "다시 연결 중" }[s] ?? s;
+  // 노란색 = 연결됐지만 연결 프로그램이 예전 버전 (다시 등록 필요)
+  const outdated = s === "connected" && !!st.claude && !!st.outdated;
+  $("#dot").className = `dot ${outdated ? "warn" : s === "connected" && st.claude ? "ok" : "err"}`;
+  $("#dot").title = { off: "Claude Code 연결 꺼짐", connecting: "연결 중", connected: outdated ? "연결됨 · 연결 프로그램이 예전 버전 (다시 등록하세요)" : st.claude ? "Claude Code 연결됨" : "claude 를 찾지 못함", "not-installed": "설치 필요", waiting: "다시 연결 중" }[s] ?? s;
   const setup = $("#setup");
   setup.replaceChildren();
   setup.classList.add("hidden");

@@ -62,7 +62,7 @@ test("주소 방식: 기본(루트만 · /** · *.) · 정규식 · 옛 규칙 �
   assert.ok(!m("a.com", B, "https://a.com/b") && !m("a.com", B, "https://c.a.com/"));
   assert.ok(m("a.com/**", B, "https://a.com/b/c") && !m("a.com/**", B, "https://c.a.com/"));
   assert.ok(m("*.a.com", B, "https://c.a.com/") && m("*.a.com", B, "https://a.com/"));
-  assert.deepEqual(parseUrls("a.com/a", B).invalid, ["a.com/a"]);
+  assert.ok(m("a.com/a", B, "https://a.com/a?x=1") && !m("a.com/a", B, "https://a.com/a/b"));
   assert.ok(m("https://*/*", B, "http://x.test/y"));
   const R = { urlRegex: true };
   assert.ok(m("/a\.com\/b/i", R, "https://A.com/b") && parseUrls("a.com", R).invalid.length === 1);
