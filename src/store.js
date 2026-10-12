@@ -1,7 +1,7 @@
 // 규칙·설정 저장 (chrome.storage.local). 값을 바꾸는 함수는 background 만 부른다 → serial 로 한 줄로 처리.
 // local: { rules: {id: Rule}, jumps: {키워드: Jump}, settings, history: {id: [버전…]} }
 // 변경 기록: 규칙마다 최근 20개 버전 (이 PC 에만, 동기화 안 함). 최신이 앞.
-import { normalizeState, normalizeRule, normalizeSettings, newId, sameContent, NEW_RULE_FLAGS } from "./model.js";
+import { normalizeState, normalizeRule, normalizeSettings, newId, sameContent, NEW_RULE_FLAGS, GLOBAL_ID } from "./model.js";
 import { mergeStates, sameState } from "./merge.js";
 
 const HISTORY_MAX = 20;
@@ -67,6 +67,7 @@ export function saveRule(input, by = "user") {
 }
 
 export function deleteRule(id) {
+  if (id === GLOBAL_ID) return Promise.resolve(); // 모든 사이트 규칙은 지울 수 없다 (끄기만)
   return serial(async () => {
     const state = await getState();
     if (!state.rules[id] || state.rules[id].deleted) return;

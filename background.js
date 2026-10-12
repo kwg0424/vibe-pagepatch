@@ -8,7 +8,7 @@ import { getState, saveRule, deleteRule, saveSettings, updateSites, importState,
 import { applyUnlock, injectUnlock, unlockHost } from "./src/unlock.js";
 import { jumpKey, variants, ruleCandidates, regexRule, filterRule, matchers } from "./src/jump.js";
 import { initStay } from "./src/stay.js";
-import { syncRegistrations, applyTab, applyAllTabs, forgetTab, matchingRules, userScriptsAvailable, spaNavigate, updateRuns, getRuns } from "./src/inject.js";
+import { syncRegistrations, applyTab, applyAllTabs, forgetTab, visibleRules, userScriptsAvailable, spaNavigate, updateRuns, getRuns } from "./src/inject.js";
 import { importData, exportState } from "./src/import.js";
 import { scheduleSync, runSync, syncNow, syncStatusView, connectServer, disconnectServer } from "./src/sync.js";
 import { getBridgeConfig, setBridgeConfig, ensureBridge, attachPanel } from "./src/bridge.js";
@@ -84,7 +84,7 @@ function scheduleRefresh() {
 }
 
 async function updateBadge(tabId, url, state) {
-  const n = !state.settings.hideBadge && /^(https?|file):/.test(url || "") ? matchingRules(state, url).filter((r) => !r.flags.off).length : 0;
+  const n = !state.settings.hideBadge && /^(https?|file):/.test(url || "") ? visibleRules(state, url).filter((r) => !r.flags.off).length : 0;
   try {
     chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {}); // 예전 버전이 탭마다 남긴 배지
     if (!n) {
@@ -296,7 +296,7 @@ const handlers = {
     return {
       injectable,
       unlock: host ? { host, ...(state.settings.sites[host] || { copy: false, strong: false }) } : null,
-      rules: injectable ? matchingRules(state, url) : [],
+      rules: injectable ? visibleRules(state, url) : [],
       runs: tabId ? await getRuns(tabId) : { spa: false, rules: {} },
       errors: ruleErrors,
       userScripts: userScriptsAvailable(),

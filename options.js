@@ -1,7 +1,7 @@
 // 설정 화면: 규칙 목록·편집기(Ace) / 설정(사용자 스크립트, Claude Code, 동기화, 표시, 데이터).
 // 저장은 모두 background 에 부탁한다 (쓰기는 한 곳에서).
 import { parseUrls } from "./src/urls.js";
-import { FLAGS, NEW_RULE_FLAGS, normalizeUrl } from "./src/model.js";
+import { FLAGS, NEW_RULE_FLAGS, normalizeUrl, GLOBAL_ID, isGlobal } from "./src/model.js";
 import { variants } from "./src/jump.js";
 import { renderMarkdown } from "./src/markdown.js";
 import { setupCommand } from "./src/bridgesetup.js";
@@ -113,6 +113,10 @@ function renderHints() {
 
 const emptyRule = (urls = "") => ({ id: null, name: "", urls, js: "", css: "", notes: "", flags: Object.fromEntries(FLAGS.map((k) => [k, !!NEW_RULE_FLAGS[k]])) });
 
+// 모든 사이트 규칙: 아직 저장한 적 없으면 빈 규칙으로 보여 준다 (처음 저장할 때 만들어짐)
+const emptyGlobal = () => ({ ...emptyRule("*"), id: GLOBAL_ID, name: "모든 사이트", flags: { ...emptyRule().flags, urlBasic: true }, created: 0, updated: 0 });
+const globalRule = () => data.rules.find(isGlobal) || emptyGlobal();
+
 function readForm() {
   const flags = {};
   for (const box of $$("[data-flag]")) flags[box.dataset.flag] = box.checked;
@@ -147,13 +151,19 @@ function onEdit() {
 
 // AI 규칙: 'AI 규칙' 버튼으로 아래 영역을 JS · CSS ↔ AI 규칙(왼쪽 편집, 오른쪽 미리보기) 전환. 규칙을 바꿔도 보던 쪽 유지
 let aiMode = false;
+// AI 규칙을 보는 중에는 규칙 삭제 대신 AI 규칙 내용 비우기. 모든 사이트 규칙은 지울 수 없다 (끄기만)
+function updateDeleteBtn() {
+  const global = current && isGlobal(current);
+  $("#delete").textContent = aiMode ? "비우기" : "삭제";
+  $("#delete").hidden = !!global && !aiMode;
+  $("#delete").disabled = aiMode ? false : !current?.id;
+}
 function setAiMode(on) {
   aiMode = on;
   $("#codePane").hidden = on;
   $("#notesPane").hidden = !on;
   $("#aiBtn").classList.toggle("active", on);
-  $("#delete").textContent = on ? "비우기" : "삭제"; // AI 규칙을 보는 중에는 규칙 삭제 대신 AI 규칙 내용 비우기
-  $("#delete").disabled = on ? false : !current?.id;
+  updateDeleteBtn();
   editor.resize();
   if (on) editors.notes.focus();
 }
@@ -222,14 +232,21 @@ function fillForm(rule) {
   sessions.notes.setValue(rule.notes || "");
   loadingForm = false;
   $("#changedNotice").hidden = true;
-  $("#delete").disabled = aiMode ? false : !rule.id;
-  $("#historyBtn").disabled = !rule.id;
+  // 모든 사이트 규칙은 이름 · 주소가 고정이라 입력칸을 감춘다
+  const global = isGlobal(rule);
+  $("#fName").disabled = global;
+  $("#fUrlMode").hidden = global;
+  $("#fUrls").hidden = global;
+  $("#urlInfo").hidden = global;
+  $("#fName").placeholder = global ? "모든 사이트에 적용되는 JS · CSS" : "이름 (예: 네이버 검색)";
+  $("#historyBtn").disabled = !rule.id || (global && !rule.updated);
+  updateDeleteBtn();
   onEdit();
 }
 
 function openRule(rule) {
   current = { id: rule.id, original: structuredClone(rule) };
-  if (rule.name.trim()) openFolder = rule.name.trim(); // 편집하는 규칙이 든 폴더만 연다 (다른 폴더는 닫힘)
+  if (rule.name.trim() && !isGlobal(rule)) openFolder = rule.name.trim(); // 편집하는 규칙이 든 폴더만 연다 (다른 폴더는 닫힘)
   $("#placeholder").hidden = true;
   $("#form").hidden = false;
   fillForm(rule);
@@ -370,8 +387,10 @@ function renderList() {
   const q = $("#search").value.trim().toLowerCase();
   const ul = $("#ruleList");
   ul.replaceChildren();
-  const list = data.rules.filter((r) => !q || [r.name, r.urls, r.css, r.js, r.notes || ""].some((s) => s.toLowerCase().includes(q)));
-  $("#noRules").hidden = data.rules.length > 0;
+  // 모든 사이트 규칙은 항상 맨 위 (검색 · 폴더에 들어가지 않음)
+  ul.append(ruleItem(globalRule()));
+  const list = data.rules.filter((r) => !isGlobal(r)).filter((r) => !q || [r.name, r.urls, r.css, r.js, r.notes || ""].some((s) => s.toLowerCase().includes(q)));
+  $("#noRules").hidden = data.rules.some((r) => !isGlobal(r));
   const groups = new Map(); // 이름 → 규칙들 (처음 나온 순서)
   for (const r of list) {
     const key = r.name.trim() || `\0${r.id}`; // 이름 없는 규칙은 묶지 않는다
@@ -461,10 +480,12 @@ function ruleItem(r, inFolder = false) {
   li.className = "rule";
   li.classList.toggle("active", r.id === current?.id);
   li.classList.toggle("off", r.flags.off);
+  const stored = !isGlobal(r) || data.rules.some(isGlobal); // 모든 사이트 규칙은 저장하기 전에는 켜고 끌 수 없다
   // 활성화 체크박스 (목록에서 바로 켜고 끔)
   const on = document.createElement("input");
   on.type = "checkbox";
   on.checked = !r.flags.off;
+  on.disabled = !stored;
   on.title = r.flags.off ? "비활성 · 누르면 활성화" : "활성 · 누르면 비활성화";
   on.onclick = (e) => e.stopPropagation();
   on.onchange = async () => {
@@ -474,7 +495,7 @@ function ruleItem(r, inFolder = false) {
     li.classList.toggle("off", off);
     await send("rule:toggle", { id: r.id, off });
   };
-  li.append(on);
+  if (!isGlobal(r)) li.append(on); // 모든 사이트 규칙은 체크박스 없음 (JS · CSS 체크로 끄기)
   const txt = document.createElement("div");
   txt.className = "txt";
   if (!inFolder) {
@@ -487,7 +508,7 @@ function ruleItem(r, inFolder = false) {
   const ur = document.createElement("div");
   ur.className = "ur";
   ur.textContent = r.urls;
-  txt.append(ur);
+  if (!isGlobal(r)) txt.append(ur); // 모든 사이트 규칙은 이름만 (주소 줄 없음)
   if (data.errors[r.id]) {
     const dot = document.createElement("span");
     dot.className = "dot err";
@@ -981,7 +1002,8 @@ function route() {
   if (hash === "settings" || hash === "unlock" || hash === "jump") return showView(hash);
   showView("rules");
   if (hash.startsWith("rule=")) {
-    const r = data.rules.find((x) => x.id === hash.slice(5));
+    const id = hash.slice(5);
+    const r = id === GLOBAL_ID ? globalRule() : data.rules.find((x) => x.id === id);
     if (r && r.id !== current?.id) openRule(r);
   } else if (hash.startsWith("new=")) {
     let urls = "";
@@ -994,9 +1016,9 @@ function route() {
     } catch {}
     openRule({ ...emptyRule(urls), name: host });
     history.replaceState(null, "", "#");
-  } else if (!current && data.rules.length) {
-    // 처음 들어왔을 때(편집 중인 규칙 없음)는 목록 맨 위 규칙을 연다
-    const r = data.rules[0];
+  } else if (!current) {
+    // 처음 들어왔을 때(편집 중인 규칙 없음)는 목록 맨 위인 모든 사이트 규칙을 연다
+    const r = globalRule();
     history.replaceState(null, "", `#rule=${r.id}`);
     openRule(r);
   }

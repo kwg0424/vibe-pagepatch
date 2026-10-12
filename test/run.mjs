@@ -11,7 +11,7 @@ import { convertPattern, parseUrls, compilePattern, ruleMatchesUrl, urlGuardCode
 import { addImportant, lineCommentsToBlock } from "../src/css.js";
 import { importData, exportState } from "../src/import.js";
 import { mergeStates, sameState } from "../src/merge.js";
-import { normalizeRule, normalizeState, normalizeSettings, normalizeHost } from "../src/model.js";
+import { normalizeRule, normalizeState, normalizeSettings, normalizeHost, GLOBAL_ID, isGlobal } from "../src/model.js";
 import { toItems, fromItems, diffItems, ITEM_MAX } from "../src/syncitems.js";
 import { jsCode, jsSources, cssCode, buildScripts } from "../src/inject.js";
 import { toQwerty, toHangul } from "../src/hangul.js";
@@ -72,6 +72,12 @@ test("주소 방식: 기본(루트만 · /** · *.) · 정규식 · 옛 규칙 �
   assert.ok(o.flags.urlBasic && o.urls === "*.naver.com/**, !mail.naver.com/**");
   const q = normalizeRule({ id: "x", urls: "https://a.b.com/path", flags: {} });
   assert.ok(q.flags.urlRegex && !q.flags.urlBasic);
+});
+test("모든 사이트 규칙: 이름 · 주소 고정, 모든 사이트, 일반 규칙은 영향 없음", () => {
+  const g = normalizeRule({ id: GLOBAL_ID, name: "아무거나", urls: "a.com", js: "1", css: "b{}", flags: { urlRegex: true } });
+  assert.ok(isGlobal(g) && g.name === "모든 사이트" && g.urls === "*" && g.flags.urlBasic && !g.flags.urlRegex);
+  assert.ok(ruleMatchesUrl(g, "https://any.test/x") && ruleMatchesUrl(g, "http://other.test/"));
+  assert.ok(!isGlobal(normalizeRule({ id: "p:x", urls: "a.com", flags: { urlBasic: true } })));
 });
 test("match pattern 매칭", () => {
   const p = compilePattern("*://*.example.com/watch*");

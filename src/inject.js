@@ -5,7 +5,7 @@
 // SPA 에서 주소만 바뀌면 (content.js 가 알려 줌) CSS 를 다시 맞춘다. JS 는 다시 실행하지 않는다 (원본과 같음).
 import { parseUrls, ruleMatchesUrl, registrationPatterns, urlGuardCode } from "./urls.js";
 import { addImportant } from "./css.js";
-import { liveRules, runsJs, runsCss } from "./model.js";
+import { liveRules, runsJs, runsCss, isGlobal } from "./model.js";
 
 export function userScriptsAvailable() {
   try {
@@ -170,6 +170,8 @@ export async function syncRegistrations(state) {
 }
 
 export const matchingRules = (state, url) => liveRules(state.rules).filter((r) => ruleMatchesUrl(r, url));
+// 팝업 · 배지 · Claude 도구에 보여 줄 규칙 (모든 사이트 규칙은 설정 화면에서만 보인다)
+export const visibleRules = (state, url) => matchingRules(state, url).filter((r) => !isGlobal(r));
 
 const injectable = (url) => /^(https?|file):/.test(url || "");
 

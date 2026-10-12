@@ -1,9 +1,9 @@
 // Claude Code 브리지가 부르는 도구들 (bridge/server.mjs 의 도구 목록과 이름·인자가 같다).
 // 탭을 고르지 않으면 마지막으로 쓴 Edge 창의 활성 탭.
 import { getState, saveRule, getHistory, revertRule } from "./store.js";
-import { matchingRules, userScriptsAvailable, ruleCss, getRuns } from "./inject.js";
+import { visibleRules, userScriptsAvailable, ruleCss, getRuns } from "./inject.js";
 import { parseUrls } from "./urls.js";
-import { FLAGS, liveRules, sortByName } from "./model.js";
+import { FLAGS, liveRules, sortByName, isGlobal } from "./model.js";
 import { addImportant } from "./css.js";
 
 // ctx: { refresh() → { errors }, getBridgeConfig() }
@@ -160,7 +160,7 @@ const tools = {
       title: tab.title,
       userScripts: userScriptsAvailable(),
       spaNavigated: runs.spa, // 이 탭에서 SPA 이동이 있었음 → spaJS 가 아닌 규칙 JS 는 새 주소에서 실행 안 됐을 수 있음
-      rules: matchingRules(state, tab.url).map((r) => ({ ...summary(r, errors), jsRun: r.js.trim() ? runs.rules[r.id] || { status: "not-run" } : undefined })),
+      rules: visibleRules(state, tab.url).map((r) => ({ ...summary(r, errors), jsRun: r.js.trim() ? runs.rules[r.id] || { status: "not-run" } : undefined })),
     };
   },
 
@@ -236,7 +236,7 @@ const tools = {
 
   async rules_list({ url }) {
     const [state, errors] = [await getState(), await ruleErrors()];
-    const list = url ? matchingRules(state, url) : sortByName(liveRules(state.rules));
+    const list = url ? visibleRules(state, url) : sortByName(liveRules(state.rules).filter((r) => !isGlobal(r)));
     return { rules: list.map((r) => summary(r, errors)) };
   },
 

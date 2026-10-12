@@ -45,9 +45,15 @@ export function normalizeFlags(f) {
   return flags;
 }
 
+// 모든 사이트 규칙: 모든 사이트(http · https)에 적용되는 JS · CSS 하나. 아이디가 정해져 있어 기기마다 하나만 생기고 동기화된다.
+// 설정 화면의 규칙 목록 맨 위에서만 보이고, 팝업 · 배지 · Claude 도구에는 나오지 않는다 (isGlobal 로 거름)
+export const GLOBAL_ID = "p:global";
+export const isGlobal = (r) => r?.id === GLOBAL_ID;
+
 export function normalizeRule(r) {
   if (!r || typeof r.id !== "string" || !r.id) return null;
   if (r.deleted) return { id: r.id, deleted: time(r.deleted) || time(r.updated), updated: time(r.updated) || time(r.deleted) };
+  if (isGlobal(r)) r = { ...r, name: "모든 사이트", urls: "*", flags: { ...r.flags, urlBasic: true, urlRegex: false } }; // 이름 · 주소는 고정
   const moved = migrateLegacyUrls(str(r.urls), r.flags); // 옛 규칙(주소 방식 플래그 없음)은 기본/정규식으로 옮긴다
   const flags = normalizeFlags(moved ? { ...r.flags, ...moved.flags } : r.flags);
   return {

@@ -17,6 +17,9 @@ Edge 확장 **User JavaScript and CSS** (ID `nbhcbdghjpllgmfilhnhkllmkecfmpld`, 
   - 정규식이 있는 규칙은 `*://*/*` 로 넓게 등록하고, 페이지에서 주소를 다시 검사한 뒤 실행
 - 편집기 아래에 변환 결과(적용/제외/잘못된 패턴)를 바로 보여 줌
 
+### 모든 사이트 규칙
+- 모든 사이트(http · https)에 적용되는 JS · CSS 하나 (`id: p:global`, 이름 "모든 사이트" · 주소 `*` 고정). 설정 화면 규칙 목록 맨 위에 고정되고 설정을 열면 처음 열리며, 팝업 · 배지 · Claude 도구(page_info, rules_list)에는 나오지 않는다 (`isGlobal`, `visibleRules`). 일반 규칙처럼 저장 · 변경 기록 · 동기화되고, 지울 수 없고 끄기만 된다
+
 ### 옵션
 | 옵션 | 뜻 |
 |---|---|
