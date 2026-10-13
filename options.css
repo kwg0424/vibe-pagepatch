@@ -205,3 +205,9 @@ dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
   background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 20px; font-size: 13px; z-index: 10;
 }
+
+/* 저장 · 변경 취소: 저장할 게 있을 때(눌러지는 상태)는 저장 버튼을 꽉 찬 색으로, 없을 때는 흐리게 → 눌러지는지 한눈에 구분 */
+#save:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+#save:not(:disabled):hover { background: var(--accent); filter: brightness(1.1); }
+#save:disabled, #cancel:disabled { opacity: 0.4; }
+@media (prefers-color-scheme: dark) { #save:not(:disabled) { color: #0b1220; } }

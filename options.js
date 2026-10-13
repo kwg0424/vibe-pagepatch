@@ -1,7 +1,7 @@
 // 설정 화면: 규칙 목록·편집기(Ace) / 설정(사용자 스크립트, Claude Code, 동기화, 표시, 데이터).
 // 저장은 모두 background 에 부탁한다 (쓰기는 한 곳에서).
 import { parseUrls } from "./src/urls.js";
-import { FLAGS, NEW_RULE_FLAGS, normalizeUrl, GLOBAL_ID, isGlobal } from "./src/model.js";
+import { FLAGS, NEW_RULE_FLAGS, normalizeUrl, normalizeRule, GLOBAL_ID, isGlobal, siteName } from "./src/model.js";
 import { variants } from "./src/jump.js";
 import { renderMarkdown } from "./src/markdown.js";
 import { setupCommand } from "./src/bridgesetup.js";
@@ -20,12 +20,12 @@ let loadingForm = false;
 
 // ── 공통 ──
 
-function toast(text) {
+function toast(text, ms = 2200) {
   const t = $("#toast");
   t.textContent = text;
   t.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (t.hidden = true), 2200);
+  toast.timer = setTimeout(() => (t.hidden = true), ms);
 }
 
 function ago(t) {
@@ -295,17 +295,40 @@ async function save() {
   }
   saving = true;
   try {
-    const res = await send("rule:save", { rule: { ...(current.id ? { id: current.id } : {}), ...f } });
+    // 응답이 15초 넘게 없으면 실패로 본다 (눌러도 반응 없이 멈춘 것처럼 보이지 않게)
+    const res = await Promise.race([
+      send("rule:save", { rule: { ...(current.id ? { id: current.id } : {}), ...f } }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("응답이 없습니다")), 15000)),
+    ]);
     current = { id: res.rule.id, original: structuredClone(res.rule) };
     await reload();
     fillForm(res.rule);
     history.replaceState(null, "", `#rule=${res.rule.id}`);
-    toast(res.error ? "저장했지만 적용에 문제가 있습니다" : "저장했습니다");
+    if (res.error) console.warn("[PagePatch] 저장했지만 적용에 문제가 있음", res.error, { id: res.rule.id });
+    toast(res.error ? `저장했지만 적용에 문제가 있습니다: ${res.error}` : "저장했습니다", res.error ? 6000 : 2200);
   } catch (e) {
-    toast(e.message);
+    await recoverSave(f, e);
   } finally {
     saving = false;
   }
+}
+
+// 저장 요청이 오류로 끝났어도 저장소에는 들어갔을 수 있다 → 다시 읽어서 같으면 저장된 것으로 맞추고, 아니면 이유를 오래 보여 준다
+async function recoverSave(f, e) {
+  console.error("[PagePatch] 저장 실패", e, { id: current?.id, name: f.name, urls: f.urls, flags: f.flags, cssLength: f.css.length, jsLength: f.js.length });
+  await reload().catch(() => {});
+  const stored = current?.id && data?.rules.find((x) => x.id === current.id);
+  if (stored) {
+    const want = normalizeRule({ ...stored, name: f.name, urls: f.urls, js: f.js, css: f.css, notes: f.notes, flags: f.flags });
+    const same = want.name === stored.name && want.urls === stored.urls && want.js === stored.js && want.css === stored.css && (want.notes || "") === (stored.notes || "") && FLAGS.every((k) => !!want.flags[k] === !!stored.flags[k]);
+    if (same) {
+      current = { id: stored.id, original: structuredClone(stored) };
+      fillForm(stored);
+      toast(`저장했습니다 (응답 오류: ${e.message})`, 6000);
+      return;
+    }
+  }
+  toast(`저장하지 못했습니다: ${e.message}`, 8000);
 }
 $("#save").onclick = save;
 
@@ -1008,11 +1031,11 @@ function route() {
   } else if (hash.startsWith("new=")) {
     let urls = "";
     try {
-      urls = `*://${new URL(hash.slice(4)).host}/*`;
+      urls = `${new URL(hash.slice(4)).host}/*`; // 기본 방식: 이 사이트(http · https)의 모든 경로
     } catch {}
     let host = "";
     try {
-      host = new URL(hash.slice(4)).hostname.replace(/^www\./, "");
+      host = siteName(new URL(hash.slice(4)).hostname); // search.naver.com → naver
     } catch {}
     openRule({ ...emptyRule(urls), name: host });
     history.replaceState(null, "", "#");

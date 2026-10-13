@@ -127,6 +127,17 @@ export function normalizeHost(input) {
   }
 }
 
+// 새 규칙의 기본 이름: 호스트에서 사이트 이름만 (search.naver.com → naver, www.google.co.kr → google).
+// IP · localhost 처럼 도메인이 아니면 호스트 그대로
+export function siteName(host) {
+  const h = String(host || "").toLowerCase().replace(/^www\./, "");
+  const parts = h.split(".");
+  if (parts.length < 2 || /^[\d.]+$/.test(h)) return h;
+  // co.kr · or.kr · com.au 같은 두 단계 끝(국가 도메인)이면 그 앞 이름
+  const second = /^(co|com|or|ne|go|ac|re|pe|ed|org|net|gov|edu)$/.test(parts[parts.length - 2]) && parts[parts.length - 1].length === 2;
+  return parts[Math.max(0, parts.length - (second ? 3 : 2))];
+}
+
 // 주소 순으로 정렬해 둔다 (기기마다 JSON 이 같아야 합치기·비교가 왔다 갔다 하지 않는다)
 export function normalizeSites(sites) {
   const out = {};

@@ -305,8 +305,14 @@ const handlers = {
   },
   async "rule:save"({ rule }) {
     const saved = await saveRule(rule, "user");
-    const { errors } = await refresh();
-    return { rule: saved, error: errors[saved.id] || null };
+    // 저장은 끝났다. 적용(refresh)이 실패해도 저장 결과는 돌려줘서 화면이 '저장 안 됨'으로 남지 않게 한다
+    try {
+      const { errors } = await refresh();
+      return { rule: saved, error: errors[saved.id] || null };
+    } catch (e) {
+      console.warn("rule:save refresh", e);
+      return { rule: saved, error: `적용 중 오류: ${e?.message || e}` };
+    }
   },
   async "rule:toggle"({ id, off }) {
     const saved = await saveRule({ id, flags: { off } }, "user");
@@ -407,6 +413,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!fn) return false;
   Promise.resolve(fn(msg, sender))
     .then((res) => sendResponse({ ok: true, ...res }))
-    .catch((e) => sendResponse({ ok: false, error: e?.message || String(e) }));
+    .catch((e) => {
+      console.error(`[PagePatch] ${msg.action} 실패`, e);
+      sendResponse({ ok: false, error: e?.message || String(e) });
+    });
   return true;
 });

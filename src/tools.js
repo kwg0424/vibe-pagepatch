@@ -3,7 +3,7 @@
 import { getState, saveRule, getHistory, revertRule } from "./store.js";
 import { visibleRules, userScriptsAvailable, ruleCss, getRuns } from "./inject.js";
 import { parseUrls } from "./urls.js";
-import { FLAGS, liveRules, sortByName, isGlobal } from "./model.js";
+import { FLAGS, liveRules, sortByName, isGlobal, GLOBAL_ID } from "./model.js";
 import { addImportant } from "./css.js";
 
 // ctx: { refresh() → { errors }, getBridgeConfig() }
@@ -248,10 +248,24 @@ const tools = {
     return { ...r, created: new Date(r.created).toISOString(), updated: new Date(r.updated).toISOString(), matches, excludeMatches, invalid, injectedCss: r.flags.important ? ruleCss(r) : undefined, error: (await ruleErrors())[id] };
   },
 
-  async rule_save({ id, name, urls, js, css, notes, options }) {
+  async rule_save({ id, name, urls, js, css, notes, options, newRule, allSites, notesApproved }) {
     const state = await getState();
+    // AI 규칙(notes)은 notesApproved 가 있을 때만: 비어 있는 notes 에 새 규칙 · 큰 수정의 초안을 같이 저장하거나, 저장 뒤 사용자가 추가하라고 했을 때
+    if (typeof notes === "string" && !notesApproved) throw new Error("notes 를 저장하려면 notesApproved: true 가 필요합니다. notes 가 비어 있는 규칙을 새로 만들거나 크게 고치며 초안을 같이 저장하는 경우이거나 사용자가 AI 규칙 추가를 승인한 경우에만 true 로 보내고, 아니면 notes 없이 저장한 뒤 \"AI 규칙에 추가할까요?\"라고 물어보세요");
     if (id && (!state.rules[id] || state.rules[id].deleted)) throw new Error(`규칙 없음: ${id}. 새로 만들려면 id 를 빼세요`);
     if (!id && !urls) throw new Error("새 규칙에는 urls 가 필요합니다");
+    // '모든 사이트' 규칙은 사용자가 모든 사이트에 적용하라고 직접 요청했을 때만
+    if (id === GLOBAL_ID && !allSites) throw new Error("'모든 사이트' 규칙은 기본으로 고치지 않습니다. 사용자가 모든 사이트에 적용하라고 직접 요청했을 때만 allSites: true 로 저장하세요. 아니면 이 페이지의 사이트 규칙에 저장하세요");
+    // 새 규칙은 이 페이지에 저장된 규칙이 없을 때만 (있으면 그 규칙에 저장, 여럿이면 사용자에게 물어봄)
+    if (!id && !newRule) {
+      const tab = await targetTab().catch(() => null);
+      const existing = tab ? visibleRules(state, tab.url) : [];
+      if (existing.length)
+        throw new Error(
+          `이 페이지에 이미 규칙이 있습니다: ${existing.map((r) => `${r.name || r.urls} (${r.id}${r.flags.off ? ", 꺼짐" : ""})`).join(", ")}. ` +
+            "켜진 규칙이 하나면 그 규칙에 저장하고(id 로), 둘 이상이면 사용자에게 어느 규칙에 저장할지 물어보세요. 사용자가 새 규칙을 원할 때만 newRule: true"
+        );
+    }
     const flags = {};
     for (const [k, v] of Object.entries(options || {})) {
       if (!FLAGS.includes(k)) throw new Error(`알 수 없는 옵션: ${k} (가능: ${FLAGS.join(", ")})`);

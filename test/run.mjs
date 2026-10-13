@@ -11,7 +11,7 @@ import { convertPattern, parseUrls, compilePattern, ruleMatchesUrl, urlGuardCode
 import { addImportant, lineCommentsToBlock } from "../src/css.js";
 import { importData, exportState } from "../src/import.js";
 import { mergeStates, sameState } from "../src/merge.js";
-import { normalizeRule, normalizeState, normalizeSettings, normalizeHost, GLOBAL_ID, isGlobal } from "../src/model.js";
+import { normalizeRule, normalizeState, normalizeSettings, normalizeHost, GLOBAL_ID, isGlobal, siteName } from "../src/model.js";
 import { toItems, fromItems, diffItems, ITEM_MAX } from "../src/syncitems.js";
 import { jsCode, jsSources, cssCode, buildScripts } from "../src/inject.js";
 import { toQwerty, toHangul } from "../src/hangul.js";
@@ -78,6 +78,16 @@ test("모든 사이트 규칙: 이름 · 주소 고정, 모든 사이트, 일반
   assert.ok(isGlobal(g) && g.name === "모든 사이트" && g.urls === "*" && g.flags.urlBasic && !g.flags.urlRegex);
   assert.ok(ruleMatchesUrl(g, "https://any.test/x") && ruleMatchesUrl(g, "http://other.test/"));
   assert.ok(!isGlobal(normalizeRule({ id: "p:x", urls: "a.com", flags: { urlBasic: true } })));
+});
+test("새 규칙 기본 이름: 호스트 → 사이트 이름", () => {
+  assert.equal(siteName("search.naver.com"), "naver");
+  assert.equal(siteName("www.youtube.com"), "youtube");
+  assert.equal(siteName("blog.naver.com"), "naver");
+  assert.equal(siteName("www.example.co.kr"), "example");
+  assert.equal(siteName("a.b.example.com.au"), "example");
+  assert.equal(siteName("naver.com"), "naver");
+  assert.equal(siteName("localhost"), "localhost");
+  assert.equal(siteName("192.168.0.1"), "192.168.0.1");
 });
 test("match pattern 매칭", () => {
   const p = compilePattern("*://*.example.com/watch*");

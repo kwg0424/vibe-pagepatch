@@ -325,7 +325,7 @@ $("#addNotes").onclick = () => {
   const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   submit(
     `이 대화의 작업 내용을 AI 규칙(notes)용 마크다운으로 간략히(목적 / 바꾼 것, 눈에 보이는 모양으로) 정리해서 이 페이지에 맞는 규칙의 notes 에 저장해 줘. ` +
-      `rule_get 으로 기존 notes 를 먼저 읽고, 있으면 지우지 말고 맨 아래에 빈 줄 + <!-- ${stamp} --> 주석 + 새 내용을 이어 붙여 전체를 rule_save 로 저장해. 비어 있으면 주석 없이 그냥 작성해. 맞는 규칙이 없으면 저장부터 하자고 말해 줘.`,
+      `rule_get 으로 기존 notes 를 먼저 읽고, 있으면 지우지 말고 맨 아래에 빈 줄 + <!-- ${stamp} --> 주석 + 새 내용을 이어 붙여 전체를 rule_save 로 저장해 (이 버튼이 승인이니 notesApproved: true). 비어 있으면 주석 없이 그냥 작성해. 맞는 규칙이 없으면 저장부터 하자고 말해 줘.`,
     "AI 규칙 추가"
   );
 };

@@ -96,6 +96,8 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
   - 파일·명령 도구 없음, PagePatch 도구만. 대화는 `--resume` 으로 이어감. 창마다 대화 보관(session)
   - 답을 실시간으로 보여 주고, 도구 호출을 줄로 표시. 중지, 새 대화, 미리보기 지우기
 - **도구**: page_info, page_outline, page_query, page_screenshot, css_preview, js_preview, preview_clear, page_reload, page_console, page_eval(설정에서 허용할 때만), rules_list, rule_get, rule_save, rule_history, rule_revert
+- **저장할 규칙 고르기** (SKILL.md + `rule_save` 검사): 기본은 이 페이지에 저장된 규칙에 더한다. 켜진 규칙이 하나면 그것에, 둘 이상이면 반드시 사용자에게 묻는다. 새 규칙은 이 페이지에 규칙이 없을 때만(있는데 새로 원하면 `newRule: true`, 아니면 도구가 거부). '모든 사이트' 규칙(`p:global`)은 사용자가 모든 사이트 적용을 직접 요청했을 때만 `allSites: true` 로 고침(아니면 거부)
+- **저장은 요청할 때만**: AI 는 사용자가 "저장"하라고 직접 말했을 때만 `rule_save` 를 부른다 ("좋아" 만으로는 저장하지 않고 묻는다). notes 가 비어 있는 규칙을 새로 만들거나 크게 고쳐 저장할 때는 AI 규칙 초안도 같이 저장하고, 그 밖의 저장 뒤에는 "AI 규칙에 추가할까요?"라고 묻고 승인했을 때만 notes 를 저장한다 (`notesApproved: true` 없이 notes 를 보내면 도구가 거부. 편집기의 'AI 규칙 추가' 버튼은 그 자체가 승인)
 - 작업 지침: `bridge/SKILL.md` (사이드바 시스템 프롬프트, 터미널 스킬로도 사용)
 
 ## 4. 동기화
