@@ -958,9 +958,10 @@ $("#bCopySetup").onclick = async () => {
   await navigator.clipboard.writeText(BRIDGE_SETUP);
   toast("복사했습니다. PowerShell 이나 cmd 에 붙여 넣고 Enter");
 };
-$("#bCopySetupMcp").onclick = async () => {
-  await navigator.clipboard.writeText(setupCommand(chrome.runtime.id, "-WithMcp"));
-  toast("복사했습니다. PowerShell 이나 cmd 에 붙여 넣고 Enter");
+$("#bRefresh").onclick = async () => {
+  await send("bridge:reconnect");
+  toast("다시 연결하는 중…");
+  setTimeout(reload, 1200); // 연결 프로그램이 응답한 뒤 상태 · 버전을 다시 읽는다
 };
 $("#bRetry").onclick = async () => {
   await send("bridge:retry");

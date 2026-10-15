@@ -35,6 +35,12 @@ let retryTimer = null;
 const panels = new Set(); // 열린 사이드바들 (runtime.Port)
 const chats = new Map(); // chatId → 사이드바 port
 
+// 지금 연결을 끊고 다시 연결한다 (등록 명령을 다시 실행한 뒤 새 연결 프로그램 버전을 읽으려고. ensureBridge(true) 는 이미 연결돼 있으면 그대로 둔다)
+export async function reconnectBridge() {
+  disconnect();
+  await ensureBridge(true);
+}
+
 // 설정대로 연결 유지. retry=true 면 지금 다시 시도 (설정 화면 '다시 확인')
 export async function ensureBridge(retry = false) {
   const cfg = await getBridgeConfig();

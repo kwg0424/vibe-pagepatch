@@ -24,6 +24,7 @@ PagePatch 는 개발자나 제3자에게 어떤 데이터도 보내지 않습니
 | `userScripts` | 규칙 JS 실행 |
 | `scripting` | CSS 넣기/빼기, 우클릭·복사 차단 해제 스크립트 넣기, Claude 미리보기, 페이지 구조 살펴보기 |
 | `storage`, `unlimitedStorage` | 규칙·설정·기록 저장, 브라우저 계정 동기화 |
+| `webNavigation` | 주소창 키워드(검색 이동)로 검색하려는 순간을 알아채고, 검색 화면이 뜨기 전에 등록한 주소로 옮기기 |
 | `tabs` | 탭 주소로 규칙 고르기, 배지, 화면 캡처, 탭 복원 |
 | `alarms` | WebDAV 주기 동기화, 연결 유지 |
 | `declarativeNetRequestWithHostAccess` | 검색 이동: 주소창 키워드 검색을 등록한 주소로 바꿈. 브라우저가 규칙대로 처리하고, 그게 안 된 경우에만 확장이 탭 주소가 키워드 검색인지 기기 안에서 확인해 옮김 (어디에도 보내지 않음) |

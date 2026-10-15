@@ -11,7 +11,7 @@ import { initStay } from "./src/stay.js";
 import { syncRegistrations, applyTab, applyAllTabs, forgetTab, visibleRules, userScriptsAvailable, spaNavigate, updateRuns, getRuns } from "./src/inject.js";
 import { importData, exportState } from "./src/import.js";
 import { scheduleSync, runSync, syncNow, syncStatusView, connectServer, disconnectServer } from "./src/sync.js";
-import { getBridgeConfig, setBridgeConfig, ensureBridge, attachPanel } from "./src/bridge.js";
+import { getBridgeConfig, setBridgeConfig, ensureBridge, reconnectBridge, attachPanel } from "./src/bridge.js";
 import { initTools } from "./src/tools.js";
 import { liveRules, sortByName, normalizeHost, normalizeUrl, liveJumps } from "./src/model.js";
 import { WARN_BYTES, QUOTA } from "./src/syncitems.js";
@@ -181,14 +181,20 @@ async function applyJumps() {
 }
 
 // 대비책: 주소창의 "검색 미리 로드" 로 받아 둔 결과를 Enter 때 그대로 보여 주면 규칙(요청 단계)이 적용되지 않는다.
-// 그래서 탭 주소가 키워드 검색 주소로 바뀌면 여기서 한 번 더 옮긴다 (서비스 워커를 깨우므로 규칙보다는 조금 늦다)
+// 그래서 탐색이 시작될 때(onBeforeNavigate, 화면이 그려지기 전) 탭 주소가 키워드 검색 주소면 여기서 한 번 더 옮긴다 (서비스 워커를 깨우므로 규칙보다는 조금 늦다)
 let jumpMatchers = null; // 서비스 워커가 떠 있는 동안 캐시, 키워드가 바뀌면 다시 만든다
-chrome.tabs.onUpdated.addListener(async (tabId, info) => {
-  if (!info.url?.startsWith("https://")) return;
+async function jumpIfKeyword(tabId, url) {
+  if (!url?.startsWith("https://")) return;
   jumpMatchers ??= matchers((await getState()).jumps);
-  const hit = jumpMatchers.find((m) => m.re.test(info.url));
+  const hit = jumpMatchers.find((m) => m.re.test(url));
   if (hit) chrome.tabs.update(tabId, { url: hit.url }).catch(() => {});
+}
+// 탐색이 시작되는 순간 (검색 화면이 그려지기 전). 미리 로드한 결과로 들어오는 경우도 여기서 먼저 옮긴다
+chrome.webNavigation.onBeforeNavigate.addListener((d) => {
+  if (d.frameId === 0) jumpIfKeyword(d.tabId, d.url);
 });
+// 그래도 놓친 경우의 마지막 대비책 (탭 주소가 바뀐 뒤)
+chrome.tabs.onUpdated.addListener((tabId, info) => jumpIfKeyword(tabId, info.url));
 
 // ── 탭 복원 (StayTab) ──
 initStay({ getSettings: async () => (await getState()).settings });
@@ -397,6 +403,10 @@ const handlers = {
   },
   async "bridge:config"({ patch }) {
     return { bridge: await setBridgeConfig(patch) };
+  },
+  async "bridge:reconnect"() {
+    await reconnectBridge();
+    return {};
   },
   async "bridge:retry"() {
     await ensureBridge(true);

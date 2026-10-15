@@ -58,9 +58,9 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 
 ### 검색 이동 (StayTab 의 주소창 키워드)
 - 저장: `state.jumps = { 키워드: { id, url, updated } | { id, deleted, updated } }` (storage.local `jumps`). 키워드 = 띄어쓰기를 지운 소문자 (`jumpKey`). 규칙처럼 항목마다 합치기, 삭제 표시 30일. 브라우저 동기화 항목 `jump:<키워드>`, WebDAV 파일·내보내기에도
-- 이동: 키워드 × 검색엔진(Google · Bing · 네이버 · 다음 · DuckDuckGo)마다 declarativeNetRequest redirect. 글자 사이에 `+*` 를 끼운 정규식으로 띄어쓰기 무시, 한/영 변형(`src/hangul.js`)
+- 이동: 키워드 × 검색엔진(Google 만. google.com · google.co.kr)마다 declarativeNetRequest redirect. 글자 사이에 `+*` 를 끼운 정규식으로 띄어쓰기 무시, 한/영 변형(`src/hangul.js`)
 - 브라우저 정규식(RE2) 메모리 한도가 작다 (2026-10 Edge 측정: 한글 7자 · 영문 27자). `isRegexSupported` 로 확인해 ① 변형 묶음 정규식 ② 변형마다 정규식 ③ urlFilter(띄어쓰기 없는 모양, 크기 한도 없음) 순서로
-- 대비책: `tabs.onUpdated` 에서 탭 주소가 키워드 검색이면 한 번 더 옮김 (검색 미리 로드로 규칙을 건너뛴 경우, ③ 키워드를 띄어 쓴 경우)
+- 대비책: `webNavigation.onBeforeNavigate`(탐색 시작, 화면이 그려지기 전) 와 `tabs.onUpdated`(주소가 바뀐 뒤)에서 탭 주소가 키워드 검색이면 한 번 더 옮김 (권한 `webNavigation`) (검색 미리 로드로 규칙을 건너뛴 경우, ③ 키워드를 띄어 쓴 경우)
 
 ### 탭 복원 · 새 탭 주소 (StayTab)
 - `settings.restore`, `settings.newtab = { on, url }` (설정과 같이 동기화). 상주는 선택 권한 `background` (동기화 안 함)

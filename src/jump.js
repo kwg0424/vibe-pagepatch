@@ -15,10 +15,6 @@ import { toQwerty, toHangul } from "./hangul.js";
 // host 권한(<all_urls>)이 있어야 리다이렉트가 된다
 export const ENGINES = [
   { re: "^https://www\\.google\\.(?:com|co\\.kr)/search\\?(?:[^#]*&)?q=", bases: ["https://www.google.com/search?", "https://www.google.co.kr/search?"], param: "q" },
-  { re: "^https://www\\.bing\\.com/search\\?(?:[^#]*&)?q=", bases: ["https://www.bing.com/search?"], param: "q" },
-  { re: "^https://search\\.naver\\.com/search\\.naver\\?(?:[^#]*&)?query=", bases: ["https://search.naver.com/search.naver?"], param: "query" },
-  { re: "^https://search\\.daum\\.net/search\\?(?:[^#]*&)?q=", bases: ["https://search.daum.net/search?"], param: "q" },
-  { re: "^https://duckduckgo\\.com/\\?(?:[^#]*&)?q=", bases: ["https://duckduckgo.com/?"], param: "q" },
 ];
 
 export const JUMP_MAX_LENGTH = 40;

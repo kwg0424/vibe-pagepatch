@@ -13,7 +13,6 @@ Node.js 22 이상과 Claude Code(`claude`)가 필요합니다. PC 마다 한 번
 **스토어에서 받았으면**: PagePatch 설정 → **AI Code** 에 나오는 등록 명령을 복사해서 PowerShell 이나 명령 프롬프트(cmd)에 붙여 넣습니다.
 연결 프로그램 파일(`bridge/`)은 확장 안에 같이 들어 있어서 인터넷에서 받지 않습니다. 명령은 Edge 가 이 확장을 풀어 둔 폴더에서 `bridge\install.ps1` 을 찾아 실행하고,
 install.ps1 이 파일을 `%LOCALAPPDATA%\PagePatch\bridge` 로 복사해서 등록합니다. 확장이 업데이트되어 연결 프로그램이 바뀌면 설정·사이드바에 "예전 버전" 안내가 나오니 같은 명령을 다시 실행하세요.
-터미널 `claude` 에서도 PagePatch 도구를 쓰려면 "터미널 claude 에도 등록" 명령을 쓰세요.
 
 **이 폴더를 개발자 모드로 로드했으면**:
 ```powershell
@@ -42,7 +41,7 @@ powershell -ExecutionPolicy Bypass -File bridge\install.ps1 -Uninstall # 등록 
 ## 검색 이동 (StayTab 의 주소창 키워드)
 - 설정 → **검색 이동** 탭: 주소 + 키워드(쉼표로 여러 개). 주소창에 키워드만 치고 Enter → 검색하지 않고 그 주소로
 - **띄어쓰기 상관없음**: 키워드는 띄어쓰기를 빼고 저장하고(`구글 지도` → `구글지도`), `구글 지도` · `구글지도` · `구글  지도` 모두 이동
-- 한/영 전환 없이 쳐도 됨 (`지도` = `wleh` = `WLEH`). 기본 검색엔진이 Google · Bing · 네이버 · 다음 · DuckDuckGo 일 때
+- 한/영 전환 없이 쳐도 됨 (`지도` = `wleh` = `WLEH`). 기본 검색엔진이 Google 일 때만
 - 브라우저 규칙(declarativeNetRequest)이 검색 요청을 바로 바꾼다. 긴 키워드(한글 8자 · 영문 28자 이상)는 브라우저 정규식 한도 때문에 띄어쓰기 없는 모양만 바로 가고, 띄어 쓰면 검색 결과가 잠깐 보였다 넘어간다
 
 ## 브라우저 (StayTab)

@@ -209,15 +209,11 @@ test("검색 이동: 키워드는 띄어쓰기를 지워 저장", () => {
   assert.deepEqual(variants("map"), ["map", "ㅡ메"]);
 });
 
-test("검색 이동: 띄어쓰기 상관없이, 한/영 전환 없이, 검색엔진 5곳", () => {
+test("검색 이동: 띄어쓰기 상관없이, 한/영 전환 없이, Google (com · co.kr)", () => {
   const jumps = jumpsOf({ "구글 지도": MAP });
   for (const term of ["구글 지도", "구글지도", "구글  지도", "구 글 지 도", "rnrmf wleh", "RNRMFWLEH"]) {
     assert.equal(goes(jumps, `https://www.google.com/search?q=${eq(term)}&oq=x&sourceid=chrome`), MAP, term);
     assert.equal(goes(jumps, `https://www.google.co.kr/search?q=${eq(term)}`), MAP, term);
-    assert.equal(goes(jumps, `https://www.bing.com/search?q=${eq(term)}&form=QBLH`), MAP, term);
-    assert.equal(goes(jumps, `https://search.naver.com/search.naver?where=nexearch&query=${eq(term)}`), MAP, term);
-    assert.equal(goes(jumps, `https://search.daum.net/search?w=tot&q=${eq(term)}`), MAP, term);
-    assert.equal(goes(jumps, `https://duckduckgo.com/?q=${eq(term)}&t=h_`), MAP, term);
   }
   assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("구글 지도")}`), MAP); // 공백 %20
   assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("구글지도").toLowerCase()}`), MAP); // 소문자 인코딩
@@ -254,7 +250,6 @@ test("검색 이동: 긴 키워드는 urlFilter 로 (띄어쓰기 없는 모양�
   assert.ok(hits(`https://www.google.com/search?q=${toQwerty(id)}&oq=x`)); // 한/영 전환 없이
   assert.ok(!hits(`https://www.google.com/search?q=${eq(id + " 앱")}&sourceid=chrome`));
   assert.ok(!hits(`https://www.google.com/search?oq=${eq(id)}&q=x`));
-  assert.ok(!hits(`https://www.bing.com/search?q=${eq(id)}`)); // 이 후보는 구글용
 });
 
 test("검색 이동 키워드: 항목마다 합치고 storage.sync · 내보내기로 오간다", () => {
