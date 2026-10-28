@@ -107,6 +107,19 @@ initTools({ refresh, getBridgeConfig });
 
 // ── 이벤트 ──
 
+// 단축키(기본 Alt+D, edge://extensions/shortcuts 에서 바꿈): 데이터 비교 열기. 이미 열린 설정 탭이 있으면 그 탭을 비교 화면으로 (비교 중인 글은 그대로)
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "open-compare") return;
+  const base = chrome.runtime.getURL("options.html");
+  const [open] = await chrome.tabs.query({ url: `${base}*` });
+  if (open) {
+    await chrome.tabs.update(open.id, { url: `${base}#compare`, active: true });
+    await chrome.windows.update(open.windowId, { focused: true });
+  } else {
+    await chrome.tabs.create({ url: `${base}#compare` });
+  }
+});
+
 chrome.runtime.onInstalled.addListener(() => startup());
 chrome.runtime.onStartup.addListener(() => startup());
 

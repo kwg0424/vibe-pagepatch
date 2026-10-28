@@ -17,6 +17,7 @@ import { jsCode, jsSources, cssCode, buildScripts } from "../src/inject.js";
 import { toQwerty, toHangul } from "../src/hangul.js";
 import { jumpKey, variants, ruleCandidates, matchers } from "../src/jump.js";
 import { renderMarkdown } from "../src/markdown.js";
+import { diffLines, diffChars, hunkKind, summarize } from "../src/diff.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 let passed = 0;
@@ -448,6 +449,36 @@ test("브리지 왕복 (도구 호출)", async () => {
     await new Promise((r) => host.on("close", r));
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+// ── 데이터 비교 ──
+test("데이터 비교: 줄 단위 추가 · 삭제 · 변경 덩어리", () => {
+  const d = (a, b, o) => diffLines(a.split("\n"), b.split("\n"), o);
+  assert.deepEqual(d("a\nb", "a\nb"), []);
+  assert.deepEqual(d("a\nb\nc", "a\nc"), [{ a0: 1, a1: 2, b0: 1, b1: 1 }]); // b 삭제
+  assert.deepEqual(d("a\nc", "a\nb\nc"), [{ a0: 1, a1: 1, b0: 1, b1: 2 }]); // b 추가
+  assert.deepEqual(d("a\nb\nc", "a\nB\nc"), [{ a0: 1, a1: 2, b0: 1, b1: 2 }]); // b → B
+  const h = d("1\n2\n3\n4\n5\n6", "1\n3\n4\n5\n7\n6");
+  assert.deepEqual(h.map(hunkKind), ["del", "add"]);
+  assert.deepEqual(summarize(d("a\nb\nc", "a\nX\nc\nd")), { hunks: 2, add: 1, del: 0, mod: 1 });
+});
+
+test("데이터 비교: 공백 · 대소문자 무시와 글자 단위", () => {
+  assert.deepEqual(diffLines(["A  b", "C"], ["a b", "c"], { ignoreSpace: true, ignoreCase: true }), []);
+  assert.equal(diffLines(["A  b"], ["a b"], { ignoreSpace: true }).length, 1); // 대소문자는 다름
+  assert.deepEqual(diffChars("hello world", "hallo wurld"), { a: [[1, 2], [7, 8]], b: [[1, 2], [7, 8]] });
+  assert.deepEqual(diffChars("가나다라", "가나라"), { a: [[2, 3]], b: [] });
+});
+
+test("데이터 비교: 큰 입력 · 완전히 다른 입력", () => {
+  const a = Array.from({ length: 20000 }, (_, i) => "line " + i);
+  const b = a.slice();
+  b[5000] = "changed";
+  b.splice(12000, 3);
+  assert.deepEqual(diffLines(a, b), [{ a0: 5000, a1: 5001, b0: 5000, b1: 5001 }, { a0: 12000, a1: 12003, b0: 12000, b1: 12000 }]);
+  const x = Array.from({ length: 3000 }, (_, i) => "a" + i);
+  const y = Array.from({ length: 3000 }, (_, i) => "b" + i);
+  assert.deepEqual(diffLines(x, y), [{ a0: 0, a1: 3000, b0: 0, b1: 3000 }]); // 전부 다름: 통째로
 });
 
 for (const [name, fn] of tests) {

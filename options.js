@@ -5,6 +5,7 @@ import { FLAGS, NEW_RULE_FLAGS, normalizeUrl, normalizeRule, GLOBAL_ID, isGlobal
 import { variants } from "./src/jump.js";
 import { renderMarkdown } from "./src/markdown.js";
 import { setupCommand } from "./src/bridgesetup.js";
+import { initCompare } from "./compare.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -42,8 +43,10 @@ function showView(view) {
   $("#rules").hidden = view !== "rules";
   $("#jump").hidden = view !== "jump";
   $("#unlock").hidden = view !== "unlock";
+  $("#compare").hidden = view !== "compare";
   $("#settings").hidden = view !== "settings";
   if (view === "rules") editor.resize();
+  if (view === "compare") compareTab?.resize();
 }
 // 규칙 탭은 편집 중이던 규칙 주소로, 나머지는 #탭이름
 for (const b of $$(".tab")) b.onclick = () => (location.hash = b.dataset.view === "rules" ? (current?.id ? `rule=${current.id}` : "") : b.dataset.view);
@@ -95,7 +98,11 @@ for (const [kind, el, mode] of [["css", "aceCss", "ace/mode/css"], ["js", "aceJs
   editors.notes = ed;
   sessions.notes = ed.session;
 }
-dark.addEventListener("change", () => Object.values(editors).forEach((ed) => ed.setTheme(theme())));
+const compareTab = initCompare({ theme, toast });
+dark.addEventListener("change", () => {
+  Object.values(editors).forEach((ed) => ed.setTheme(theme()));
+  compareTab.setTheme();
+});
 const editor = { resize: () => Object.values(editors).forEach((ed) => ed.resize()) };
 
 const HINTS = {
@@ -560,7 +567,7 @@ function siteCheckbox(host, mode) {
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = !!data.settings.sites[host][mode];
-  input.setAttribute("aria-label", `${host} ${mode === "copy" ? "복사 제한 해제" : "강력 해제"}`);
+  input.setAttribute("aria-label", `${host} ${mode === "copy" ? "복사 제한 해제" : "강력 제한 해제"}`);
   input.onchange = async () => {
     const res = await send("unlock:set", { host, mode, value: input.checked });
     data.settings.sites = res.sites;
@@ -737,6 +744,14 @@ $("#keepAlive").onchange = async (e) => {
   const ok = on ? await chrome.permissions.request(BG) : await chrome.permissions.remove(BG);
   showKeepAlive(ok ? on : !on);
 };
+
+function renderViewer() {
+  for (const el of document.querySelectorAll("[data-viewer]")) el.checked = data.settings.fileView[el.dataset.viewer];
+}
+
+for (const el of document.querySelectorAll("[data-viewer]")) {
+  el.onchange = () => send("settings", { patch: { fileView: { ...data.settings.fileView, [el.dataset.viewer]: el.checked } } });
+}
 
 function renderBrowser() {
   $("#restore").checked = data.settings.restore;
@@ -929,6 +944,7 @@ function renderSettings() {
   $("#usBanner").hidden = data.userScripts;
   $("#badge").checked = !data.settings.hideBadge;
   renderBrowser();
+  renderViewer();
   renderBridge();
   renderStorage();
 }
@@ -1023,7 +1039,7 @@ async function reload() {
 
 function route() {
   const hash = decodeURIComponent(location.hash.slice(1));
-  if (hash === "settings" || hash === "unlock" || hash === "jump") return showView(hash);
+  if (hash === "settings" || hash === "unlock" || hash === "jump" || hash === "compare") return showView(hash);
   showView("rules");
   if (hash.startsWith("rule=")) {
     const id = hash.slice(5);

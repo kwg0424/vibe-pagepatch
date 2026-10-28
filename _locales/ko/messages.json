@@ -1,4 +1,5 @@
 {
   "extName": { "message": "PagePatch" },
-  "extDesc": { "message": "사이트마다 내 CSS·JS 를 적용하고, 우클릭·복사 차단 해제, 주소창 키워드로 바로 이동, 탭 복원·새 탭 주소, Claude Code 와 대화하며 페이지 고치기" }
+  "cmdCompare": { "message": "데이터 비교 열기" },
+  "extDesc": { "message": "사이트마다 내 CSS·JS 적용, 우클릭·복사 차단 해제, 주소창 키워드 이동, 새 탭 페이지를 내 주소로 변경(끌 수 있음), Claude Code 로 페이지 고치기" }
 }

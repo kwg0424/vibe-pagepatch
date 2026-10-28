@@ -71,10 +71,14 @@ export function normalizeRule(r) {
 
 // restore: 창이 모두 닫혔다 다시 열리면 마지막 탭 복원 (StayTab 에서 옮김, 백그라운드 상주 중일 때만 의미 있음)
 // newtab: 새 탭을 열면 바로 이 주소로 (StayTab 의 새 탭 리다이렉트)
-export const DEFAULT_SETTINGS = { hideBadge: false, sites: {}, restore: false, newtab: { on: true, url: "https://www.naver.com/" }, updated: 0 };
+// fileView: (csv 는 tsv, yaml 은 toml · ini, code 는 js · css 도 포함) 주소가 해당 파일이면 읽기 좋게 보여 주기 (형식별로 켜고 끔)
+export const VIEWER_TYPES = ["csv", "code", "json", "md", "xml", "yaml"];
+const DEFAULT_VIEWER = Object.fromEntries(VIEWER_TYPES.map((t) => [t, true]));
+export const DEFAULT_SETTINGS = { hideBadge: false, sites: {}, restore: false, newtab: { on: true, url: "https://www.naver.com/" }, fileView: DEFAULT_VIEWER, updated: 0 };
 
 export function normalizeSettings(s) {
   const nt = s?.newtab;
+  const vw = s?.fileView;
   return {
     hideBadge: typeof s?.hideBadge === "boolean" ? s.hideBadge : DEFAULT_SETTINGS.hideBadge,
     sites: normalizeSites(s?.sites),
@@ -83,6 +87,7 @@ export function normalizeSettings(s) {
       on: typeof nt?.on === "boolean" ? nt.on : DEFAULT_SETTINGS.newtab.on,
       url: typeof nt?.url === "string" ? nt.url : DEFAULT_SETTINGS.newtab.url,
     },
+    fileView: Object.fromEntries(VIEWER_TYPES.map((t) => [t, typeof vw?.[t] === "boolean" ? vw[t] : DEFAULT_VIEWER[t]])),
     updated: time(s?.updated),
   };
 }

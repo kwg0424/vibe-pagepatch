@@ -211,3 +211,58 @@ dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
 #save:not(:disabled):hover { background: var(--accent); filter: brightness(1.1); }
 #save:disabled, #cancel:disabled { opacity: 0.4; }
 @media (prefers-color-scheme: dark) { #save:not(:disabled) { color: #0b1220; } }
+
+/* 데이터 비교 탭 */
+#compare { overflow: hidden; }
+.cmp { height: 100%; display: flex; flex-direction: column; padding: 12px 16px 14px; gap: 8px; min-height: 0; }
+.cmp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.cmp-spacer { flex: 1; }
+#cmpSummary { color: var(--muted); }
+#cmpSummary.same { color: var(--green, #16a34a); font-weight: 600; }
+#cmpSummary.diff { color: var(--danger); font-weight: 700; }
+.cmp-heads, .cmp-body { display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); }
+.cmp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.cmp-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-btns { display: flex; gap: 6px; flex: none; }
+.cmp-swap { display: flex; align-items: center; justify-content: center; }
+.cmp-swap .btn { padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+.cmp-body { flex: 1; min-height: 0; }
+.cmp-body .ace { height: 100%; min-height: 0; }
+.cmp-body .ace.drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.cmp-mid { position: relative; overflow: hidden; }
+.cmp-mid svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cmp-band { stroke-width: 1; }
+.cmp-band-add { fill: rgba(46, 160, 67, .22); stroke: rgba(46, 160, 67, .55); }
+.cmp-band-del { fill: rgba(248, 81, 73, .22); stroke: rgba(248, 81, 73, .55); }
+.cmp-band-mod { fill: rgba(56, 139, 253, .22); stroke: rgba(56, 139, 253, .55); }
+.cmp-band.on { stroke-width: 2; }
+.cmp-band.flash { animation: cmp-band-flash .7s ease-out; }
+@keyframes cmp-band-flash { 0% { filter: none; } 10% { filter: brightness(1.5) drop-shadow(0 0 4px rgba(250, 204, 21, .5)); } 100% { filter: none; } } /* 빨리 켜지고 천천히 꺼짐 */
+#cmpBtns { position: absolute; inset: 0; }
+.cmp-apply { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; }
+.cmp-apply button { width: 28px; height: 22px; padding: 0; line-height: 1; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--text); font-weight: 700; cursor: pointer; }
+.cmp-apply button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Ace 안의 차이 표시 (줄 배경 · 바뀐 글자) */
+.ace_marker-layer .cmp-add, .ace_marker-layer .cmp-del, .ace_marker-layer .cmp-mod, .ace_marker-layer .cmp-char-mod { position: absolute; }
+/* 이동한 차이의 반짝임: 편집기 위에 얹는 요소 (compare.js flash). 줄이 있는 쪽은 상자, 줄이 없는 쪽은 끼워질 자리의 굵은 선 */
+.cmp-flash-box, .cmp-flash-gap { position: absolute; right: 0; z-index: 6; pointer-events: none; border-radius: 3px; background: rgba(250, 204, 21, 0); }
+.cmp-flash-box { animation: cmp-flash .7s ease-out; }
+.cmp-flash-gap { animation: cmp-flash-line .7s ease-out; }
+@keyframes cmp-flash { 0% { background: rgba(250, 204, 21, 0); box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0); } 10% { background: rgba(250, 204, 21, .2); box-shadow: inset 0 0 0 1px rgba(250, 204, 21, .45); } 100% { background: rgba(250, 204, 21, 0); box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0); } }
+@keyframes cmp-flash-line { 0% { background: rgba(250, 204, 21, 0); box-shadow: 0 0 0 rgba(250, 204, 21, 0); } 10% { background: rgba(250, 204, 21, .85); box-shadow: 0 0 10px rgba(250, 204, 21, .7); } 100% { background: rgba(250, 204, 21, 0); box-shadow: 0 0 0 rgba(250, 204, 21, 0); } }
+.ace_marker-layer .cmp-add { background: rgba(46, 160, 67, .22); }
+.ace_marker-layer .cmp-del { background: rgba(248, 81, 73, .22); }
+.ace_marker-layer .cmp-mod { background: rgba(56, 139, 253, .17); }
+.ace_marker-layer .cmp-char-mod { background: rgba(56, 139, 253, .36); border-radius: 2px; }
+
+.viewer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.viewer-grid .row { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); } /* 칸마다 테두리로 이름과 체크박스를 묶음 */
+@media (max-width: 600px) { .viewer-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* 데이터 비교 편집기: 어두운 테마에서 더 검은색에 가깝게 (사이트 규칙 편집기는 그대로) */
+@media (prefers-color-scheme: dark) {
+  #aceCmpL.ace_editor, #aceCmpR.ace_editor,
+  #aceCmpL .ace_gutter, #aceCmpR .ace_gutter { background-color: #131518; }
+  #aceCmpL .ace_marker-layer .ace_active-line, #aceCmpR .ace_marker-layer .ace_active-line,
+  #aceCmpL .ace_gutter-active-line, #aceCmpR .ace_gutter-active-line { background-color: #1c1f24; }
+}

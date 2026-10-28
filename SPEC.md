@@ -66,12 +66,25 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 - `settings.restore`, `settings.newtab = { on, url }` (설정과 같이 동기화). 상주는 선택 권한 `background` (동기화 안 함)
 - 탭 목록 `storage.local.staySession`, 창 0개 `storage.session.stayIdle` (`src/stay.js`). 새 탭 `chrome_url_overrides.newtab` → `newtab.js` 가 저장소를 직접 읽고 `tabs.update`
 
+### 파일 보기 (설정 → 파일 보기 카드로 형식별 켜고 끔)
+- 주소가 텍스트 파일이면 읽기 좋게 보여 준다. content script 두 번째 항목 (http · https · file, document_idle). 공통 `viewer-common.js`(`globalThis.PPView`: 윗줄 · 원본 ↔ 정리 전환 · 내용 복사 · 글자 크기 · 1MB 초과는 원본 상태로 시작하고 "정리하기"를 누르면 만듦)
+- 형식: `viewer.js` JSON(들여쓰기 · 색 · 접기, 큰 숫자 보존), `viewer-csv.js` CSV · TSV(표, 구분자 자동), `viewer-code.js` JS · CSS(색 · 줄 번호, 압축본 정리), `viewer-yaml.js` YAML · TOML · INI · INC(색), `viewer-xml.js` XML(접기), `viewer-md.js` Markdown(자체 변환기, 글은 textContent 로만)
+- 판별: 응답 형식(Content-Type) → `text/plain` 이면 확장자. 일반 웹페이지(`<pre>` 하나가 아닌 문서)는 건드리지 않음. 저장: `settings.fileView` (기본 모두 켜짐)
+- `file://` 는 확장 세부 정보의 "파일 URL 접근 허용"을 켜야 동작. `text/csv` · `text/markdown` 처럼 브라우저가 내려받기로 처리하는 응답은 대상이 아님
+
+### 데이터 비교 (설정 → 데이터 비교 탭)
+- 좌우 Ace 편집기에 글을 넣으면 줄 · 글자 차이를 색으로 표시 (`src/diff.js`: Myers 줄 · 글자 비교, 공백 · 대소문자 무시). 저장하지 않음
+- 덩어리마다 가운데 » « 로 반대쪽에 적용(Ctrl+Z 로 되돌림), ▲ ▼ 차이 이동(부드러운 이동 + 한 번 반짝임), ⇄ 좌우 전환, 스크롤 연동(대응하는 줄 기준)
+- 파일을 끌어다 놓으면 놓은 쪽에 넣는다 (UTF-8 아니면 CP949, 5MB, 글자 파일만). 확장자 · 내용(JSON · XML)으로 편집기 색 입히기
+- 단축키 `open-compare` (기본 Alt+Shift+D, edge://extensions/shortcuts 에서 바꿈. Alt+D 는 Edge 주소창 단축키라 자동 지정 안 됨)
+
 ## 2. 화면
-- **팝업**: 맨 위 복사 제한 해제 / 강력 해제 (http·https 페이지), 그 아래 이 페이지에 맞는 규칙(켜기/끄기, JS 실행 상태, 등록 오류), 이 사이트 규칙 만들기, **AI와 고치기**(사이드바 열기), 설정
+- **팝업**: 맨 위 복사 제한 해제 / 강력 제한 해제 (http·https 페이지), 그 아래 이 페이지에 맞는 규칙(켜기/끄기, JS 실행 상태, 등록 오류), 이 사이트 규칙 만들기, **AI와 고치기**(사이드바 열기), 설정
 - **설정 - 사이트 규칙**: 목록(검색, 이름순), 편집기(Ace, CSS/JS 탭, Ctrl+S, 찾기, 자동완성), 옵션, 변경 기록(최근 20개, 불러와서 저장), 삭제. 다른 곳(Claude·동기화)에서 바뀌면 알림
 - **AI 규칙**(규칙의 `notes`, 마크다운): 편집기의 "AI 규칙" 버튼으로 아래 영역을 JS · CSS ↔ AI 규칙(왼쪽 편집, 오른쪽 미리보기 `src/markdown.js`)으로 전환. 화면을 어떻게 바꾸려는지 사람이 적어 두면, 사이트 UI 가 바뀌어 CSS·JS 가 깨졌을 때 AI 가 `rule_get` 으로 읽고 그 의도대로 다시 맞춘다 (`rule_save` 의 `notes`, SKILL.md). 저장·기록·동기화는 규칙과 같이
 - **설정 - 검색 이동** (사이트 규칙 탭 오른쪽): 주소 + 키워드(쉼표), 주소별로 묶은 목록(한/영 변형은 회색), 행 눌러 고치기, 삭제
 - **설정 - 설정**: 카드 3장 — ① 표시 · AI Code(Claude Code 연결) ② 브라우저(백그라운드 상주 · 탭 복원 · 새 탭 주소) ③ 동기화 · 데이터
+- **설정 - 데이터 비교** (복사 제한 해제 탭 오른쪽): 위 '데이터 비교'
 - **설정 - 복사 제한 해제**: 사이트 추가(주소 → 호스트)·검색·모드 체크·삭제
 - **설정 - 설정**: 사용자 스크립트 상태·켜는 방법, Claude Code 연결, 동기화, 배지, 가져오기/내보내기
 - **사이드바**: Claude Code 채팅 (아래)
@@ -121,11 +134,13 @@ SCSS/LESS 컴파일, Prettier, 외부 라이브러리 주입(jQuery 포함), 공
 ```
 manifest.json  background.js  content.js
 popup.*  options.*  sidepanel.*  ui.css
-src/  model urls css inject store merge sync syncitems import tools bridge unlock jump stay hangul (+ webdav crypto key ← EdgeMark)
+src/  model urls css inject store merge sync syncitems import tools bridge unlock jump stay hangul diff markdown (+ webdav crypto key ← EdgeMark)
+compare.js   (데이터 비교 탭)
+viewer-common.js viewer.js viewer-csv.js viewer-code.js viewer-yaml.js viewer-xml.js viewer-md.js   (파일 보기)
 newtab.html newtab.js   (← StayTab)
 inject/  unlock-copy.js unlock-strong.js
 bridge/  host.mjs mcp.mjs ws.mjs common.mjs version.mjs tooldefs.mjs SKILL.md install.ps1  (스토어 zip 에도 들어감)
-vendor/ace/  (Ace 1.44, CSS·JS 모드, 테마 2개, 검색, 자동완성)
+vendor/ace/  (Ace 1.44, CSS·JS·JSON·XML·YAML·INI·TOML 모드, 테마 2개, 검색, 자동완성)
 tools/  export-from-original.mjs make-icons.mjs
 test/run.mjs
 ```

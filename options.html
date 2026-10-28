@@ -16,6 +16,7 @@
       <button class="tab active" data-view="rules">사이트 규칙</button>
       <button class="tab" data-view="jump">검색 이동</button>
       <button class="tab" data-view="unlock">복사 제한 해제</button>
+      <button class="tab" data-view="compare">데이터 비교</button>
       <button class="tab" data-view="settings">설정</button>
     </nav>
   </header>
@@ -179,7 +180,7 @@
           <tr>
             <th class="col-host">사이트</th>
             <th class="col-check">우클릭 · 복사</th>
-            <th class="col-check">강력 해제</th>
+            <th class="col-check">강력 제한 해제</th>
             <th class="col-del"></th>
           </tr>
         </thead>
@@ -189,6 +190,35 @@
       <p class="desc">켠 것은 바로 적용되고, 끈 것은 해당 사이트를 새로고침하면 적용됩니다. 목록은 규칙과 같이 동기화됩니다.</p>
     </main>
   </div>
+
+  <!-- 데이터 비교: 좌우 편집기 + 차이 표시 (저장하지 않음) -->
+  <main id="compare" class="view" hidden>
+    <div class="cmp">
+      <div class="cmp-bar">
+        <strong>데이터 비교</strong>
+        <span class="muted small">파일을 끌어다 놓거나 붙여 넣으세요</span>
+        <span class="muted small" id="cmpShortcut"></span>
+        <span class="sep"></span>
+        <button type="button" class="btn small" id="cmpPrev" title="이전 차이로">▲ 이전</button>
+        <button type="button" class="btn small" id="cmpNext" title="다음 차이로">▼ 다음</button>
+        <span class="small" id="cmpSummary"></span>
+        <span class="cmp-spacer"></span>
+        <label class="check" title="공백(띄어쓰기 · 탭 · 줄 끝 공백)의 차이를 무시합니다"><input type="checkbox" id="cmpWs"> 공백 무시</label>
+        <label class="check" title="대문자와 소문자를 같게 봅니다"><input type="checkbox" id="cmpCase"> 대소문자 무시</label>
+      </div>
+      <p id="cmpMessage" class="message" hidden></p>
+      <div class="cmp-heads">
+        <div class="cmp-head"><b id="cmpNameL">원본</b><span class="cmp-btns"><button type="button" class="btn small" id="cmpCopyL">복사</button><button type="button" class="btn small danger" id="cmpClearL">지우기</button></span></div>
+        <div class="cmp-swap"><button type="button" class="btn small" id="cmpSwap" title="전환: 왼쪽과 오른쪽 내용을 서로 바꿉니다" aria-label="좌우 전환">⇄</button></div>
+        <div class="cmp-head"><b id="cmpNameR">비교</b><span class="cmp-btns"><button type="button" class="btn small" id="cmpCopyR">복사</button><button type="button" class="btn small danger" id="cmpClearR">지우기</button></span></div>
+      </div>
+      <div class="cmp-body">
+        <div class="ace" id="aceCmpL"></div>
+        <div class="cmp-mid" id="cmpMid"><svg id="cmpSvg" aria-hidden="true"></svg><div id="cmpBtns"></div></div>
+        <div class="ace" id="aceCmpR"></div>
+      </div>
+    </div>
+  </main>
 
   <!-- 설정 (EdgeMark · StayTab 설정 화면과 같은 모양) -->
   <div id="settings" class="view settings" hidden>
@@ -254,6 +284,21 @@
       </section>
 
     </main>
+
+    <div class="card">
+      <section>
+        <h2>파일 보기</h2>
+        <p class="desc">주소가 아래 파일이면 읽기 좋게 보여 줍니다. 형식별로 켜고 끕니다</p>
+        <div class="viewer-grid">
+          <label class="row" title="표로 보기"><span><b>CSV · TSV</b></span><input type="checkbox" data-viewer="csv"></label>
+          <label class="row" title="코드 색 · 줄 번호"><span><b>JS · CSS</b></span><input type="checkbox" data-viewer="code"></label>
+          <label class="row" title="들여쓰기 · 색 · 접기"><span><b>JSON</b></span><input type="checkbox" data-viewer="json"></label>
+          <label class="row" title="문서 모양으로 보기"><span><b>Markdown</b></span><input type="checkbox" data-viewer="md"></label>
+          <label class="row" title="들여쓰기 · 색 · 접기"><span><b>XML</b></span><input type="checkbox" data-viewer="xml"></label>
+          <label class="row" title="색 · 줄 번호 (YAML · TOML · INI · INC)"><span><b>YAML · TOML · INI · INC</b></span><input type="checkbox" data-viewer="yaml"></label>
+        </div>
+      </section>
+    </div>
 
     <!-- StayTab 에서 옮김: 브라우저 (상주 · 탭 복원 · 새 탭 주소) 카드 -->
     <div class="card">
@@ -329,7 +374,7 @@
         <h2>데이터</h2>
         <div class="buttons">
           <button type="button" id="export">내보내기 (JSON)</button>
-          <button type="button" id="importBtn" title="PagePatch 내보내기 파일, User JavaScript and CSS 데이터">가져오기</button>
+          <button type="button" id="importBtn" title="PagePatch 내보내기 파일, User JavaScript and CSS 데이터">가져오기 (JSON)</button>
           <input type="file" id="importFile" accept=".json,application/json" hidden>
         </div>
         <div id="importReport" class="desc" hidden></div>

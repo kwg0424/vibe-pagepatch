@@ -130,7 +130,12 @@ $("#uReload").onclick = () => {
   window.close();
 };
 
-$("#settings").onclick = () => openOptions();
+// 톱니바퀴: 저장된 사이트 규칙 중 첫 번째(설정 화면 목록 맨 위, '모든 사이트' 제외)를 바로 연다. 규칙이 없으면 설정 화면 처음
+$("#settings").onclick = async () => {
+  const res = await send("state");
+  const first = (res?.rules || []).find((r) => r.id !== "p:global");
+  openOptions(first ? `#rule=${encodeURIComponent(first.id)}` : "");
+};
 $("#howto").onclick = (e) => {
   e.preventDefault();
   openOptions("#settings");
