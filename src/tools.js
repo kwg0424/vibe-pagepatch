@@ -251,7 +251,7 @@ const tools = {
   async rule_save({ id, name, urls, js, css, notes, options, newRule, allSites, notesApproved }) {
     const state = await getState();
     // AI 규칙(notes)은 notesApproved 가 있을 때만: 비어 있는 notes 에 새 규칙 · 큰 수정의 초안을 같이 저장하거나, 저장 뒤 사용자가 추가하라고 했을 때
-    if (typeof notes === "string" && !notesApproved) throw new Error("notes 를 저장하려면 notesApproved: true 가 필요합니다. notes 가 비어 있는 규칙을 새로 만들거나 크게 고치며 초안을 같이 저장하는 경우이거나 사용자가 AI 규칙 추가를 승인한 경우에만 true 로 보내고, 아니면 notes 없이 저장한 뒤 \"AI 규칙에 추가할까요?\"라고 물어보세요");
+    if (typeof notes === "string" && !notesApproved) throw new Error("notes 를 저장하려면 notesApproved: true 가 필요합니다. 사용자가 저장 질문에서 2번(사이트 규칙 + AI 규칙에 저장)을 골랐거나 AI 규칙 추가를 직접 승인한 경우에만 true 로 보내고, 아니면 notes 없이 저장하세요");
     if (id && (!state.rules[id] || state.rules[id].deleted)) throw new Error(`규칙 없음: ${id}. 새로 만들려면 id 를 빼세요`);
     if (!id && !urls) throw new Error("새 규칙에는 urls 가 필요합니다");
     // '모든 사이트' 규칙은 사용자가 모든 사이트에 적용하라고 직접 요청했을 때만
