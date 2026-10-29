@@ -1,4 +1,4 @@
-// 검색 이동 (StayTab 의 '주소창 키워드' 를 옮김) → declarativeNetRequest 리다이렉트 규칙.
+// 검색 이동 (주소창 검색어) → declarativeNetRequest 리다이렉트 규칙.
 // 주소창에 "구글 지도" 를 치고 Enter 하면 Edge 가 기본 검색엔진으로 검색한다. 그 검색 요청이 나가기 전에
 // 브라우저가 등록된 주소로 바꿔 보낸다 → 서비스 워커를 거치지 않아 바로 가고, 검색 결과 페이지는 뜨지 않는다.
 //   - 띄어쓰기는 상관없다: 키워드는 띄어쓰기를 지워 저장하고("구글지도"), 검색어는 글자 사이에 공백이 몇 개 있어도 맞춘다
@@ -57,7 +57,7 @@ export function urlFilters(engine, v) {
 export function ruleCandidates(jumps) {
   const out = [];
   for (const j of Object.values(jumps)) {
-    if (j.deleted) continue;
+    if (j.deleted || j.off) continue; // 쓰지 않는 검색어는 규칙을 만들지 않음
     const vs = variants(j.id);
     for (const engine of ENGINES) {
       out.push({
@@ -83,5 +83,5 @@ export const filterRule = (id, url, urlFilter) => ({
 // 대비책용 (서비스 워커 안 JS 정규식이라 크기 한도가 없다 → 항상 띄어쓰기 무시 모양)
 export const matchers = (jumps) =>
   Object.values(jumps)
-    .filter((j) => !j.deleted)
+    .filter((j) => !j.deleted && !j.off)
     .flatMap((j) => ENGINES.map((engine) => ({ re: new RegExp(regexFor(engine, variants(j.id), SP_JS), "i"), url: j.url })));

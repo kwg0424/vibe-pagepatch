@@ -2,7 +2,6 @@
 // 저장은 모두 background 에 부탁한다 (쓰기는 한 곳에서).
 import { parseUrls } from "./src/urls.js";
 import { FLAGS, NEW_RULE_FLAGS, normalizeUrl, normalizeRule, GLOBAL_ID, isGlobal, siteName } from "./src/model.js";
-import { variants } from "./src/jump.js";
 import { renderMarkdown } from "./src/markdown.js";
 import { setupCommand } from "./src/bridgesetup.js";
 import { initCompare } from "./compare.js";
@@ -198,7 +197,7 @@ function updateCounts() {
 }
 
 const URL_PLACEHOLDERS = {
-  basic: "주소 (쉼표로 여러 개, !로 제외) 예: a.com, a.com/**, *.a.com, a.com/@*/videos, !b.a.com",
+  basic: "주소 (쉼표로 여러 개, !로 제외) 예: a.com, *.a.com, a.com/, a.com/*, a.com/@*/videos, !b.a.com",
   regex: "정규식 (쉼표로 여러 개, !로 제외) 예: /youtube\\.com\\/(watch|shorts)/i",
 };
 const updateUrlPlaceholder = () => ($("#fUrls").placeholder = URL_PLACEHOLDERS[$("#fUrlMode").value]);
@@ -211,7 +210,7 @@ function updateUrlInfo() {
     return;
   }
   const { matches, excludeMatches, regex, excludeRegex, invalid } = parseUrls(urls, flags);
-  const rx = (list) => list.map((x) => `/${x.source}/${x.flags}`);
+  const rx = (list) => list.map((x) => x.label || `/${x.source}/${x.flags}`);
   const parts = [];
   if (matches.length || regex.length) parts.push(`적용: ${[...matches, ...rx(regex)].join(", ")}`);
   if (excludeMatches.length || excludeRegex.length) parts.push(`제외: ${[...excludeMatches, ...rx(excludeRegex)].join(", ")}`);
@@ -219,7 +218,7 @@ function updateUrlInfo() {
   if (invalid.length) {
     const bad = document.createElement("span");
     bad.className = "bad";
-    const why = flags.urlBasic ? " (기본 방식은 a.com · a.com/** · *.a.com · a.com/경로 · a.com/*/videos 모양만 됩니다. 그 밖은 '정규식'을 쓰세요)" : flags.urlRegex ? " (/정규식/플래그 모양이어야 합니다)" : "";
+    const why = flags.urlBasic ? " (기본 방식은 a.com · a.com/** · a.com/* · *.a.com · a.com/경로 · a.com/*/videos 모양만 됩니다. 그 밖은 '정규식'을 쓰세요)" : flags.urlRegex ? " (/정규식/플래그 모양이어야 합니다)" : "";
     bad.textContent = `${parts.length ? "   ·   " : ""}잘못된 패턴: ${invalid.join(", ")}${why}`;
     el.append(bad);
   }
@@ -477,10 +476,10 @@ function renderList() {
   }
 }
 
-// 폴더 펼치기·접기 애니메이션 시간(ms, EdgeMark 기본값과 같게). 0 이면 바로
+// 폴더 펼치기·접기 애니메이션 시간(ms). 0 이면 바로
 const FOLDER_MS = 100;
 
-// 하위 목록 높이를 0 ↔ 실제 높이로 (EdgeMark 와 같은 방식). 끝나면 이루어지고, 중간에 멈추면(cancel) 거부되는 Promise
+// 하위 목록 높이를 0 ↔ 실제 높이로. 끝나면 이루어지고, 중간에 멈추면(cancel) 거부되는 Promise
 function slide(box, opening) {
   for (const a of box.getAnimations()) a.cancel();
   const h = box.scrollHeight;
@@ -628,11 +627,11 @@ $("#uAddForm").onsubmit = async (e) => {
 };
 $("#uFilter").addEventListener("input", renderSites);
 
-// ── 검색 이동 (StayTab 의 주소창 키워드) ──
-// 저장은 키워드마다 (키워드 → 주소). 화면에서는 주소별로 묶어 보여 주고, 주소 하나에 키워드를 쉼표로 여러 개 넣는다.
+// ── 검색 이동 (주소창 검색어) ──
+// 저장은 검색어마다 (검색어 → 주소). 화면도 검색어마다 한 줄 (사용 여부 체크 · 쓰지 않는 검색어는 회색으로 아래에) 키워드를 쉼표로 여러 개 넣는다.
 // 키워드는 background 가 띄어쓰기를 지워 저장한다 ("구글 지도" → "구글지도")
 
-let jEditing = null; // 행을 눌러 고치는 중인 주소
+let jEditing = null; // 행을 눌러 고치는 중인 검색어
 
 function jMessage(text, isError) {
   const m = $("#jMessage");
@@ -641,48 +640,55 @@ function jMessage(text, isError) {
   m.hidden = !text;
 }
 
-// [[주소, [키워드…]]], 주소 순
-function jumpGroups() {
-  const by = {};
-  for (const j of data.jumps) (by[j.url] ||= []).push(j.id);
-  return Object.entries(by)
-    .map(([url, list]) => [url, list.sort((a, b) => a.localeCompare(b, "ko"))])
-    .sort(([a], [b]) => a.localeCompare(b));
+// 사용 중인 검색어가 먼저(가나다순), 그다음 쓰지 않는 검색어(가나다순)
+function jumpRows() {
+  const byName = (a, b) => a.id.localeCompare(b.id, "ko");
+  return [...data.jumps.filter((j) => !j.off).sort(byName), ...data.jumps.filter((j) => j.off).sort(byName)];
 }
 
-function setJumpEditing(url, keywords) {
-  jEditing = url;
+function setJumpEditing(key, url) {
+  jEditing = key;
+  $("#jKeywords").value = key || "";
   $("#jUrl").value = url || "";
-  $("#jKeywords").value = keywords ? keywords.join(", ") : "";
-  $("#jSubmit").textContent = url ? "저장" : "추가";
-  $("#jCancel").hidden = !url;
+  $("#jSubmit").textContent = key ? "저장" : "추가";
+  $("#jCancel").hidden = !key;
   renderJumps();
 }
 
 function renderJumps() {
-  const groups = jumpGroups();
-  const rows = groups.map(([url, keywords]) => {
+  const list = jumpRows();
+  const rows = list.map((j, i) => {
     const tr = document.createElement("tr");
     tr.title = "눌러서 수정";
-    tr.classList.toggle("editing", url === jEditing);
+    tr.classList.toggle("editing", j.id === jEditing);
+    tr.classList.toggle("off", !!j.off);
+    tr.classList.toggle("first-off", !!j.off && i > 0 && !list[i - 1].off); // 쓰지 않는 묶음의 첫 줄에 구분선
     tr.onclick = () => {
-      setJumpEditing(url, keywords);
+      setJumpEditing(j.id, j.url);
       $("#jKeywords").focus();
     };
-    const tdUrl = document.createElement("td");
-    tdUrl.textContent = url;
+    const tdOn = document.createElement("td");
+    tdOn.className = "col-on";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = !j.off;
+    box.title = box.checked ? "사용 중 (끄면 쓰지 않음)" : "쓰지 않음 (켜면 다시 사용)";
+    box.onclick = (e) => e.stopPropagation();
+    box.onchange = async () => {
+      try {
+        data.jumps = (await send("jump:toggle", { key: j.id, off: !box.checked })).jumps;
+      } catch (err) {
+        jMessage(err.message, true);
+      }
+      renderJumps();
+    };
+    tdOn.append(box);
     const tdKw = document.createElement("td");
     tdKw.className = "col-kw";
-    // 등록한 키워드, 그 뒤에 한/영 전환 없이 친 모양을 회색으로 (지도, wleh)
-    const auto = [...new Set(keywords.flatMap(variants))].filter((v) => !keywords.includes(v));
-    tdKw.textContent = keywords.join(", ");
-    if (auto.length) {
-      const span = document.createElement("span");
-      span.className = "auto";
-      span.title = "한/영 전환 없이 쳐도 됨 (자동)";
-      span.textContent = `, ${auto.join(", ")}`;
-      tdKw.append(span);
-    }
+    tdKw.textContent = j.id;
+    const tdUrl = document.createElement("td");
+    tdUrl.className = "col-url";
+    tdUrl.textContent = j.url;
     const tdDel = document.createElement("td");
     tdDel.className = "col-del";
     const del = document.createElement("button");
@@ -690,27 +696,27 @@ function renderJumps() {
     del.textContent = "삭제";
     del.onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm(`${url}\n키워드 ${keywords.join(", ")} 를 삭제할까요?`)) return;
-      data.jumps = (await send("jump:delete", { url })).jumps;
-      if (url === jEditing) setJumpEditing(null);
+      if (!confirm(`검색어 "${j.id}" 를 삭제할까요?\n${j.url}`)) return;
+      data.jumps = (await send("jump:delete", { key: j.id })).jumps;
+      if (j.id === jEditing) setJumpEditing(null);
       else renderJumps();
     };
     tdDel.append(del);
-    tr.append(tdUrl, tdKw, tdDel);
+    tr.append(tdOn, tdKw, tdUrl, tdDel);
     return tr;
   });
   $("#jRows").replaceChildren(...rows);
-  $("#jEmpty").hidden = groups.length > 0;
+  $("#jEmpty").hidden = list.length > 0;
 }
 
 $("#jForm").onsubmit = async (e) => {
   e.preventDefault();
   try {
-    const res = await send("jump:save", { url: $("#jUrl").value, keywords: $("#jKeywords").value, oldUrl: jEditing });
+    const res = await send("jump:save", { url: $("#jUrl").value, keywords: $("#jKeywords").value, oldKey: jEditing });
     data.jumps = res.jumps;
     jMessage(`${jEditing ? "저장했습니다" : "추가했습니다"}${res.moved.length ? ` (${res.moved.join(", ")} 는 다른 주소에서 옮겨 옴)` : ""}`);
     setJumpEditing(null);
-    $("#jUrl").focus();
+    $("#jKeywords").focus();
   } catch (err) {
     jMessage(err.message, true);
   }
@@ -720,7 +726,7 @@ $("#jCancel").onclick = () => {
   setJumpEditing(null);
 };
 
-// ── 브라우저 (StayTab 의 기본 설정) ──
+// ── 브라우저 ──
 // 백그라운드 상주 = 선택 권한 "background" (이 PC에만). 체크박스는 권한이 있는지 그대로 보여 준다.
 // 권한 요청은 클릭(사용자 동작) 안에서 바로 해야 한다. 경고 없는 권한이라 확인 창 없이 허용된다
 const BG = { permissions: ["background"] };
@@ -829,7 +835,7 @@ function renderBridge() {
   renderHints();
 }
 
-// 동기화 (EdgeMark · StayTab 과 같은 화면)
+// 동기화
 let connectOpen = false;
 let busy = false;
 let lastRunEnd = 0;
@@ -1009,7 +1015,7 @@ $("#importFile").onchange = async (e) => {
     const { report } = await send("import", { json });
     const p = document.createElement("div");
     p.className = "desc ok";
-    p.textContent = `규칙 ${report.count}개${report.jumps ? `, 검색 이동 키워드 ${report.jumps}개` : ""}를 가져왔습니다.`;
+    p.textContent = `규칙 ${report.count}개${report.jumps ? `, 검색 이동 검색어 ${report.jumps}개` : ""}를 가져왔습니다.`;
     box.append(p);
     if (report.warnings?.length) {
       const ul = document.createElement("ul");

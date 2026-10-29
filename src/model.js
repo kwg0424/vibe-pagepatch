@@ -5,7 +5,7 @@
 //      | 삭제됨: { id, deleted, updated }   (다른 기기에 삭제를 전하는 표시. 30일 뒤 정리)
 // flags:
 //   off        규칙 끄기
-//   urlBasic   주소 입력 방식 '기본': a.com(루트만) · a.com/**(모든 경로) · *.a.com(하위 도메인). src/urls.js
+//   urlBasic   주소 입력 방식 '기본': a.com(루트만) · a.com/**(모든 경로) · *.a.com(하위 도메인만). src/urls.js
 //   urlRegex   주소 입력 방식 '정규식': /정규식/플래그 만. 둘 다 없는 옛 규칙(strictUrl 포함)은 읽을 때 migrateLegacyUrls 가 옮김
 //   isoJS      JS 를 격리 환경(USER_SCRIPT)에서 실행. 끄면 페이지 환경(MAIN)
 //   isoCSS     CSS 를 scripting.insertCSS 로 넣기 (페이지가 못 지움). 끄면 <style> 태그
@@ -17,7 +17,7 @@
 //   important  넣을 때 CSS 선언마다 !important 붙이기
 //   offJS      이 규칙의 JS 만 끄기 (코드는 그대로 두고 실행하지 않음)
 //   offCSS     이 규칙의 CSS 만 끄기
-// Jump = 검색 이동 키워드 (StayTab 에서 옮김, 아래 normalizeJump · src/jump.js)
+// Jump = 검색 이동 검색어 (아래 normalizeJump · src/jump.js)
 // Settings = { hideBadge(아이콘에 규칙 수 숨기기, 기본 false = 표시), sites, restore, newtab, updated }
 //   sites: 복사 제한 해제 { "example.com": { copy, strong } }. 둘 다 끈 사이트는 두지 않는다.
 //          설정과 같이 동기화된다 (브라우저 동기화의 settings 항목 8 KB → 사이트 200개쯤까지)
@@ -69,8 +69,8 @@ export function normalizeRule(r) {
   };
 }
 
-// restore: 창이 모두 닫혔다 다시 열리면 마지막 탭 복원 (StayTab 에서 옮김, 백그라운드 상주 중일 때만 의미 있음)
-// newtab: 새 탭을 열면 바로 이 주소로 (StayTab 의 새 탭 리다이렉트)
+// restore: 창이 모두 닫혔다 다시 열리면 마지막 탭 복원 (백그라운드 상주 중일 때만 의미 있음)
+// newtab: 새 탭을 열면 바로 이 주소로
 // fileView: (csv 는 tsv, yaml 은 toml · ini, code 는 js · css 도 포함) 주소가 해당 파일이면 읽기 좋게 보여 주기 (형식별로 켜고 끔)
 export const VIEWER_TYPES = ["csv", "code", "json", "md", "xml", "yaml"];
 const DEFAULT_VIEWER = Object.fromEntries(VIEWER_TYPES.map((t) => [t, true]));
@@ -92,7 +92,7 @@ export function normalizeSettings(s) {
   };
 }
 
-// "naver.com" → "https://naver.com/". 주소로 쓸 수 없으면 null (StayTab 과 같음)
+// "naver.com" → "https://naver.com/". 주소로 쓸 수 없으면 null
 export function normalizeUrl(input) {
   let s = String(input || "").trim();
   if (!s) return null;
@@ -109,13 +109,13 @@ export function normalizeUrl(input) {
 }
 
 // 검색 이동 키워드 하나. id = 키워드 (띄어쓰기 없이, 소문자. src/jump.js 의 jumpKey 와 같은 규칙)
-//   { id, url, updated } | 삭제됨 { id, deleted, updated }
+//   { id, url, off?, updated } | 삭제됨 { id, deleted, updated }   (off: true = 쓰지 않는 검색어)
 export function normalizeJump(j) {
   const id = typeof j?.id === "string" ? j.id.replace(/\s+/g, "").toLowerCase() : "";
   if (!id || id.length > 40) return null;
   if (j.deleted) return { id, deleted: time(j.deleted) || time(j.updated), updated: time(j.updated) || time(j.deleted) };
   const url = normalizeUrl(j.url);
-  return url ? { id, url, updated: time(j.updated) } : null;
+  return url ? { id, url, ...(j.off ? { off: true } : {}), updated: time(j.updated) } : null;
 }
 
 // "https://www.Example.com/path" 나 "example.com" → "www.example.com" / "example.com". 아니면 null.

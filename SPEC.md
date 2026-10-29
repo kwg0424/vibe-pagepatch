@@ -11,7 +11,7 @@ Edge 확장 **User JavaScript and CSS** (ID `nbhcbdghjpllgmfilhnhkllmkecfmpld`, 
 ### URL 패턴
 - 쉼표로 여러 개. `!` 로 시작하면 제외
 - 입력 방식은 규칙마다 하나 (`urlBasic` · `urlRegex` 플래그)
-- **기본(`urlBasic`, 새 규칙 기본)**: `a.com` → 그 주소 루트만(`/` 와 `/?*`. 스킴은 항상 http·https 둘 다 — 써도 무시하고 저장할 때 지움: `https://*/*` → `*/*`), `a.com/**` → 모든 경로, `*.a.com` → 하위 도메인(a.com 자신 포함), `*` → 모든 사이트. 스킴·포트는 써도 됨. 경로를 쓰면 그 경로만(`a.com/a`, `a.com/@x/videos`). 경로의 `*` 는 `/` 포함 아무 글자(`a.com/*/videos`). 쿼리가 붙어도 맞음
+- **기본(`urlBasic`, 새 규칙 기본)**: `a.com` → 모든 경로, `a.com/` → 루트만(`/` 와 `/?*`. 스킴은 항상 http·https 둘 다 — 써도 무시하고 저장할 때 지움: `https://*/*` → `*/*`), `a.com/**` → 모든 경로, `a.com/*` → 한 단계 경로만, `*.a.com` → 하위 도메인만(a.com 자신은 제외), `*` → 모든 사이트. 스킴·포트는 써도 됨. 경로를 쓰면 그 경로만(`a.com/a`, `a.com/@x/videos`). 경로의 `*` 는 `/` 를 뺀 아무 글자(`a.com/*/videos`), `**` 는 `/` 포함 아무 글자. 브라우저 패턴보다 엄격한 항목(`*.a.com`, 경로의 `*`)은 넓게 등록한 뒤 실행할 때 정규식으로 다시 거름.. 쿼리가 붙어도 맞음
 - **옛 규칙**(플래그 없음, `strictUrl` 포함)은 읽을 때 `migrateLegacyUrls` 가 옮김: 호스트 + 모든 경로 꼴(`naver.com` → `*://*.naver.com/*`)이면 기본(`*.naver.com/**`), 경로가 있거나 정규식이 섞이면 전부 정규식 줄로. 원본 확장(3.1.2)의 변환은 옮길 때만 씀
 - **정규식(`urlRegex`)**: `/…/플래그` 만 받음(그 밖의 입력은 잘못된 패턴). 주소 전체(location.href)에 검사. 안의 쉼표는 구분자가 아님. `!/…/` 는 제외
   - 정규식이 있는 규칙은 `*://*/*` 로 넓게 등록하고, 페이지에서 주소를 다시 검사한 뒤 실행
@@ -56,13 +56,13 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 - 저장: `settings.sites` (`{ "example.com": { copy, strong } }`, 주소순) → 설정과 같이 동기화 (합치기는 설정 전체 단위로 늦은 쪽)
 - 넣기: `tabs.onUpdated` complete 때 `inject/unlock-copy.js` · `inject/unlock-strong.js` 를 MAIN world·모든 프레임에 `executeScript`. 켤 때는 바로 넣고, 끄는 것은 새로고침 후
 
-### 검색 이동 (StayTab 의 주소창 키워드)
-- 저장: `state.jumps = { 키워드: { id, url, updated } | { id, deleted, updated } }` (storage.local `jumps`). 키워드 = 띄어쓰기를 지운 소문자 (`jumpKey`). 규칙처럼 항목마다 합치기, 삭제 표시 30일. 브라우저 동기화 항목 `jump:<키워드>`, WebDAV 파일·내보내기에도
-- 이동: 키워드 × 검색엔진(Google 만. google.com · google.co.kr)마다 declarativeNetRequest redirect. 글자 사이에 `+*` 를 끼운 정규식으로 띄어쓰기 무시, 한/영 변형(`src/hangul.js`)
+### 검색 이동
+- 저장: `state.jumps = { 검색어: { id, url, off?, updated } | { id, deleted, updated } }` (storage.local `jumps`). 검색어 = 띄어쓰기를 지운 소문자 (`jumpKey`). `off: true` = 쓰지 않는 검색어(규칙 · 대비책에서 뺌). 규칙처럼 항목마다 합치기, 삭제 표시 30일. 브라우저 동기화 항목 `jump:<키워드>`, WebDAV 파일·내보내기에도
+- 이동: 검색어 × 검색엔진(Google 만. google.com · google.co.kr)마다 declarativeNetRequest redirect. 글자 사이에 `+*` 를 끼운 정규식으로 띄어쓰기 무시, 한/영 변형(`src/hangul.js`)
 - 브라우저 정규식(RE2) 메모리 한도가 작다 (2026-10 Edge 측정: 한글 7자 · 영문 27자). `isRegexSupported` 로 확인해 ① 변형 묶음 정규식 ② 변형마다 정규식 ③ urlFilter(띄어쓰기 없는 모양, 크기 한도 없음) 순서로
-- 대비책: `webNavigation.onBeforeNavigate`(탐색 시작, 화면이 그려지기 전) 와 `tabs.onUpdated`(주소가 바뀐 뒤)에서 탭 주소가 키워드 검색이면 한 번 더 옮김 (권한 `webNavigation`) (검색 미리 로드로 규칙을 건너뛴 경우, ③ 키워드를 띄어 쓴 경우)
+- 대비책: `webNavigation.onBeforeNavigate`(탐색 시작, 화면이 그려지기 전) 와 `tabs.onUpdated`(주소가 바뀐 뒤)에서 탭 주소가 검색어 검색이면 한 번 더 옮김 (권한 `webNavigation`) (검색 미리 로드로 규칙을 건너뛴 경우, ③ 키워드를 띄어 쓴 경우)
 
-### 탭 복원 · 새 탭 주소 (StayTab)
+### 탭 복원 · 새 탭 주소
 - `settings.restore`, `settings.newtab = { on, url }` (설정과 같이 동기화). 상주는 선택 권한 `background` (동기화 안 함)
 - 탭 목록 `storage.local.staySession`, 창 0개 `storage.session.stayIdle` (`src/stay.js`). 새 탭 `chrome_url_overrides.newtab` → `newtab.js` 가 저장소를 직접 읽고 `tabs.update`
 
@@ -82,7 +82,7 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 - **팝업**: 맨 위 오른쪽 톱니바퀴 = 이 페이지에 적용된(켜진) 규칙을 설정 화면에서 바로 열기(켜진 것이 없으면 맞는 첫 규칙, 맞는 규칙이 없으면 '모든 사이트'). 복사 제한 해제 / 강력 제한 해제 (http·https 페이지), 그 아래 이 페이지에 맞는 규칙(켜기/끄기, JS 실행 상태, 등록 오류), 이 사이트 규칙 만들기, **AI와 고치기**(사이드바 열기), 설정
 - **설정 - 사이트 규칙**: 목록(검색, 이름순), 편집기(Ace, CSS/JS 탭, Ctrl+S, 찾기, 자동완성), 옵션, 변경 기록(최근 20개, 불러와서 저장), 삭제. 다른 곳(Claude·동기화)에서 바뀌면 알림
 - **AI 규칙**(규칙의 `notes`, 마크다운): 편집기의 "AI 규칙" 버튼으로 아래 영역을 JS · CSS ↔ AI 규칙(왼쪽 편집, 오른쪽 미리보기 `src/markdown.js`)으로 전환. 화면을 어떻게 바꾸려는지 사람이 적어 두면, 사이트 UI 가 바뀌어 CSS·JS 가 깨졌을 때 AI 가 `rule_get` 으로 읽고 그 의도대로 다시 맞춘다 (`rule_save` 의 `notes`, SKILL.md). 저장·기록·동기화는 규칙과 같이
-- **설정 - 검색 이동** (사이트 규칙 탭 오른쪽): 주소 + 키워드(쉼표), 주소별로 묶은 목록(한/영 변형은 회색), 행 눌러 고치기, 삭제
+- **설정 - 검색 이동** (사이트 규칙 탭 오른쪽): 검색어(쉼표) + 주소, 검색어마다 한 줄(사용 체크 · 사용 중 가나다순 → 쓰지 않는 것(회색) 가나다순), 행 눌러 고치기, 삭제. 한/영 전환 없이 쳐도 되는 기능은 화면에 드러내지 않고 그대로 동작
 - **설정 - 설정**: 카드 3장 — ① 표시 · AI Code(Claude Code 연결) ② 브라우저(백그라운드 상주 · 탭 복원 · 새 탭 주소) ③ 동기화 · 데이터
 - **설정 - 데이터 비교** (복사 제한 해제 탭 오른쪽): 위 '데이터 비교'
 - **설정 - 복사 제한 해제**: 사이트 추가(주소 → 호스트)·검색·모드 체크·삭제
@@ -91,7 +91,7 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 - 배지(기본 켜짐): 이 페이지에 적용된 활성 규칙 수 (초록 바탕, 검은 글자)
 - 팝업: 규칙이 없으면 "사이트 규칙 추가"만, 규칙이 있고 Claude Code 가 연결돼 있을 때만 "AI와 고치기"
 - 규칙 활성화는 설정의 규칙 목록 왼쪽 체크박스와 팝업에서. 편집기는 JS(왼쪽)·CSS(오른쪽)를 나란히, 옵션은 각 편집기 위에
-- 아이콘: TapCode·StayTab·EdgeMark 와 같은 모양 (#2563EB 둥근 사각형, 흰 반창고, 노란 패드) - `tools/make-icons.mjs`
+- 아이콘: (#2563EB 둥근 사각형, 흰 반창고, 노란 패드) - `tools/make-icons.mjs`
 
 ## 3. Claude Code 연결
 ```
@@ -114,9 +114,9 @@ SPA 이동이 있었는데 spaJS 가 아니라 실행 안 된 경우는 따로 �
 - 작업 지침: `bridge/SKILL.md` (사이드바 시스템 프롬프트, 터미널 스킬로도 사용)
 
 ## 4. 동기화
-EdgeMark · StayTab 과 같이 **브라우저 계정 / 서버(WebDAV) 중 하나**. 둘 다 이 PC 의 규칙과 **합치는** 방식 (규칙마다 updated 가 늦은 쪽, 삭제는 30일간 표시).
+**브라우저 계정 / 서버(WebDAV) 중 하나**. 둘 다 이 PC 의 규칙과 **합치는** 방식 (규칙마다 updated 가 늦은 쪽, 삭제는 30일간 표시).
 - **브라우저 계정** (기본): `storage.sync`. 규칙 하나 = 항목 하나 (`rule:<id>`), 8 KB 넘으면 조각. 사용량 표시, 80 KB 넘으면 경고
-- **서버(WebDAV)**: "서버(WebDAV) 동기화 연결"로 전환. EdgeMark 와 같은 모듈 (PBKDF2 → AES-GCM 암호화, ETag 충돌 감지). 변경 5초 뒤 올리기, 15분마다 받아 오기. 서버 모드에서는 storage.sync 를 건드리지 않음
+- **서버(WebDAV)**: "서버(WebDAV) 동기화 연결"로 전환. PBKDF2 → AES-GCM 암호화, ETag 충돌 감지). 변경 5초 뒤 올리기, 15분마다 받아 오기. 서버 모드에서는 storage.sync 를 건드리지 않음
   - 연결할 때 서버와 이 기기에 서로 다른 규칙이 있으면 묻는다: 합치기 / 서버 규칙으로 덮어쓰기 / 이 기기 규칙을 서버에 올리기
   - "브라우저 동기화로 전환": 서버 연결 정보를 지우고 지금 규칙을 브라우저 동기화와 합침 (서버 파일은 그대로)
 - 동기화 안 하는 것: 변경 기록, WebDAV 접속 정보, Claude 연결 설정
@@ -134,10 +134,10 @@ SCSS/LESS 컴파일, Prettier, 외부 라이브러리 주입(jQuery 포함), 공
 ```
 manifest.json  background.js  content.js
 popup.*  options.*  sidepanel.*  ui.css
-src/  model urls css inject store merge sync syncitems import tools bridge unlock jump stay hangul diff markdown (+ webdav crypto key ← EdgeMark)
+src/  model urls css inject store merge sync syncitems import tools bridge unlock jump stay hangul diff markdown (+ webdav crypto key)
 compare.js   (데이터 비교 탭)
 viewer-common.js viewer.js viewer-csv.js viewer-code.js viewer-yaml.js viewer-xml.js viewer-md.js   (파일 보기)
-newtab.html newtab.js   (← StayTab)
+newtab.html newtab.js
 inject/  unlock-copy.js unlock-strong.js
 bridge/  host.mjs mcp.mjs ws.mjs common.mjs version.mjs tooldefs.mjs SKILL.md install.ps1  (스토어 zip 에도 들어감)
 vendor/ace/  (Ace 1.44, CSS·JS·JSON·XML·YAML·INI·TOML 모드, 테마 2개, 검색, 자동완성)

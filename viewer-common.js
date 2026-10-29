@@ -32,7 +32,7 @@
     #pp-bar .grp button:nth-child(2) { font-weight: 600; color: #e6e6e6; min-width: 64px; }
     #pp-bar .ext { color: #98c379; font-weight: 600; }
     #pp-bar .warn { color: #e5c07b; } #pp-bar .warn:empty { display: none; }
-    #pp-view { box-sizing: border-box; width: fit-content; min-width: min(720px, calc(100% - 32px)); max-width: calc(100% - 32px); margin: 16px auto; /* 글이 짧으면 가운데에 좁게, 길어서 넘치면 좌우 꽉 채움 */ padding: 14px 18px 18px; background: #282c34; border: 1px solid #3e4451; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, .35); color: #abb2bf; font: var(--pp-fs, 13px)/1.55 Consolas, "D2Coding", monospace; word-break: break-all; }
+    #pp-view { box-sizing: border-box; width: fit-content; min-width: min(720px, calc(100% - 32px)); max-width: calc(100% - 32px); margin: 16px auto; /* 글이 짧으면 가운데에 좁게, 길어서 넘치면 좌우 꽉 채움 */ padding: 14px 36px 18px 18px; background: #282c34; border: 1px solid #3e4451; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, .35); color: #abb2bf; font: var(--pp-fs, 13px)/1.55 Consolas, "D2Coding", monospace; word-break: break-all; }
     #pp-view a { color: inherit; text-decoration: underline; }
     #pp-view a:hover { color: #c8e6b0; }
   `;
@@ -176,7 +176,7 @@
   }
 
   const LINE_CSS = `
-    #pp-view { padding: 12px 18px 14px 0; white-space: pre-wrap; counter-reset: l; }
+    #pp-view { padding: 12px 36px 14px 0; white-space: pre-wrap; counter-reset: l; }
     #pp-view .l { position: relative; min-height: 1.55em; padding-left: 4.6em; counter-increment: l; color: #abb2bf; }
     #pp-view .l::before { content: counter(l); position: absolute; left: 0; width: 3.4em; text-align: right; color: #5c6370; user-select: none; } /* 줄 번호는 CSS 로 그려서 드래그 · 복사에 잡히지 않음 */
     #pp-view .kw, #pp-view .bo { color: #c678dd; } #pp-view .s { color: #98c379; } #pp-view .n, #pp-view .lit { color: #d19a66; }

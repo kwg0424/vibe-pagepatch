@@ -3,8 +3,8 @@
 //   - 팝업·설정·사이드바 메시지 처리
 //   - Claude Code 연결 유지 (src/bridge.js)
 //   - 복사 제한 해제 (src/unlock.js)
-//   - 검색 이동 · 탭 복원 · 새 탭 주소 (StayTab 에서 옮김, src/jump.js · src/stay.js · newtab.js)
-import { getState, saveRule, deleteRule, saveSettings, updateSites, importState, getHistory, revertRule, saveJumps, deleteJumps } from "./src/store.js";
+//   - 검색 이동 · 탭 복원 · 새 탭 주소 (src/jump.js · src/stay.js · newtab.js)
+import { getState, saveRule, deleteRule, saveSettings, updateSites, importState, getHistory, revertRule, saveJumps, deleteJump, setJumpOff } from "./src/store.js";
 import { applyUnlock, injectUnlock, unlockHost } from "./src/unlock.js";
 import { jumpKey, variants, ruleCandidates, regexRule, filterRule, matchers } from "./src/jump.js";
 import { initStay } from "./src/stay.js";
@@ -156,7 +156,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// ── 검색 이동 (StayTab 의 주소창 키워드) ──
+// ── 검색 이동 (주소창 검색어) ──
 // 키워드가 바뀌면 리다이렉트 규칙(declarativeNetRequest dynamic rules)을 통째로 다시 올린다. 규칙은 브라우저를 다시 켜도 남는다.
 // 정규식이 커서 브라우저가 받지 않으면(RE2 메모리 한도) 변형마다 나누고, 그래도 크면 urlFilter(띄어쓰기 없는 모양)로 (src/jump.js)
 let jumpTimer;
@@ -209,7 +209,7 @@ chrome.webNavigation.onBeforeNavigate.addListener((d) => {
 // 그래도 놓친 경우의 마지막 대비책 (탭 주소가 바뀐 뒤)
 chrome.tabs.onUpdated.addListener((tabId, info) => jumpIfKeyword(tabId, info.url));
 
-// ── 탭 복원 (StayTab) ──
+// ── 탭 복원 ──
 initStay({ getSettings: async () => (await getState()).settings });
 
 // 복사 제한 해제: 페이지 로드가 끝나면
@@ -380,20 +380,24 @@ const handlers = {
     });
     return { sites: settings.sites };
   },
-  // 검색 이동: 주소 하나에 키워드 여러 개 (쉼표로). 키워드는 띄어쓰기를 지워 저장 ("구글 지도" → "구글지도")
-  async "jump:save"({ url: input, keywords, oldUrl }) {
+  // 검색 이동: 주소 하나에 검색어 여러 개 (쉼표로). 검색어는 띄어쓰기를 지워 저장 ("구글 지도" → "구글지도"). oldKey = 행을 눌러 고치는 중인 검색어
+  async "jump:save"({ url: input, keywords, oldKey }) {
     const url = normalizeUrl(input);
     if (!url) throw new Error("올바른 주소가 아닙니다");
     const keys = String(keywords || "").split(/[,，]/).map((k) => k.trim()).filter(Boolean).map(jumpKey);
-    if (!keys.length) throw new Error("키워드를 입력하세요");
-    if (keys.includes(null)) throw new Error("키워드는 띄어쓰기 빼고 40자 이하로 입력하세요");
-    // "지도, wleh" 처럼 다른 키워드의 한/영 모양이면 빼고 하나만 (어차피 자동으로 맞춘다)
+    if (!keys.length) throw new Error("검색어를 입력하세요");
+    if (keys.includes(null)) throw new Error("검색어는 띄어쓰기 빼고 40자 이하로 입력하세요");
+    // "지도, wleh" 처럼 다른 검색어의 한/영 모양이면 빼고 하나만 (어차피 자동으로 맞춘다)
     const uniq = [...new Set(keys)].filter((k, i, all) => !all.some((o, j) => j < i && variants(o).includes(k)));
-    const { moved } = await saveJumps(url, uniq, oldUrl || null);
+    const { moved } = await saveJumps(url, uniq, oldKey || null);
     return { url, moved, jumps: liveJumps((await getState()).jumps) };
   },
-  async "jump:delete"({ url }) {
-    await deleteJumps(url);
+  async "jump:delete"({ key }) {
+    await deleteJump(key);
+    return { jumps: liveJumps((await getState()).jumps) };
+  },
+  async "jump:toggle"({ key, off }) {
+    await setJumpOff(key, !!off);
     return { jumps: liveJumps((await getState()).jumps) };
   },
   async import({ json }) {

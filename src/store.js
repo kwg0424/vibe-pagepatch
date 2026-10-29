@@ -21,25 +21,44 @@ export async function getState() {
 // 검색 이동: 주소 하나에 키워드 여러 개. 키워드는 띄어쓰기를 지워 저장한다 ("구글 지도" → "구글지도").
 // oldUrl: 고치는 중인 주소 → 그 주소에서 뺀 키워드는 지운다. 새로 추가할 때 이미 있는 주소면 키워드를 더한다.
 // keys 는 jumpKey 로 맞춘 것 (background 가 맞춰서 넘긴다) → { moved: [다른 주소에서 옮겨 온 키워드] }
-export function saveJumps(url, keys, oldUrl = null) {
+export function saveJumps(url, keys, oldKey = null) {
   return serial(async () => {
     const { jumps } = await getState();
     const now = Date.now();
     const live = (j) => j && !j.deleted;
-    const moved = keys.filter((k) => live(jumps[k]) && jumps[k].url !== url && jumps[k].url !== oldUrl);
-    if (oldUrl) for (const j of Object.values(jumps)) if (live(j) && j.url === oldUrl && !keys.includes(j.id)) jumps[j.id] = { id: j.id, deleted: now, updated: now };
-    for (const k of keys) if (!live(jumps[k]) || jumps[k].url !== url) jumps[k] = { id: k, url, updated: now };
+    const moved = keys.filter((k) => live(jumps[k]) && jumps[k].url !== url && k !== oldKey);
+    // 행을 눌러 고치는 중이면: 검색어를 바꿨을 때 예전 검색어는 지우고(삭제 표시), 사용 여부는 새 검색어가 하나일 때 이어받는다
+    const wasOff = !!(oldKey && live(jumps[oldKey]) && jumps[oldKey].off);
+    if (oldKey && !keys.includes(oldKey) && live(jumps[oldKey])) jumps[oldKey] = { id: oldKey, deleted: now, updated: now };
+    for (const k of keys) {
+      if (live(jumps[k]) && jumps[k].url === url) continue;
+      const off = (k === oldKey ? !!(live(jumps[k]) && jumps[k].off) : keys.length === 1 && wasOff) || false;
+      jumps[k] = off ? { id: k, url, off: true, updated: now } : { id: k, url, updated: now };
+    }
     await chrome.storage.local.set({ jumps });
     return { moved };
   });
 }
 
-// 그 주소의 키워드를 모두 지운다 (다른 기기에 전하려고 삭제 표시를 남긴다)
-export function deleteJumps(url) {
+// 검색어 하나를 지운다 (다른 기기에 전하려고 삭제 표시를 남긴다)
+export function deleteJump(key) {
   return serial(async () => {
     const { jumps } = await getState();
+    if (!jumps[key] || jumps[key].deleted) return;
     const now = Date.now();
-    for (const j of Object.values(jumps)) if (!j.deleted && j.url === url) jumps[j.id] = { id: j.id, deleted: now, updated: now };
+    jumps[key] = { id: key, deleted: now, updated: now };
+    await chrome.storage.local.set({ jumps });
+  });
+}
+
+// 검색어를 쓰거나(off = false) 쓰지 않는다(off = true). 지우지 않고 회색으로 남긴다
+export function setJumpOff(key, off) {
+  return serial(async () => {
+    const { jumps } = await getState();
+    const j = jumps[key];
+    if (!j || j.deleted || !!j.off === !!off) return;
+    const { off: _old, ...rest } = j;
+    jumps[key] = off ? { ...rest, off: true, updated: Date.now() } : { ...rest, updated: Date.now() };
     await chrome.storage.local.set({ jumps });
   });
 }

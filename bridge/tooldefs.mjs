@@ -85,7 +85,7 @@ export const TOOLS = [
       "저장 규칙: 이 페이지에 켜진 규칙이 하나면 그 규칙에 저장하고, 둘 이상이면 반드시 사용자에게 어느 규칙인지 묻는다. 새 규칙은 이 페이지에 저장된 규칙이 없을 때만 만든다(id 없이, 이미 있는데 사용자가 새로 원하면 newRule:true). " +
       "'모든 사이트' 규칙(id p:global)은 사용자가 모든 사이트에 적용하라고 직접 요청했을 때만 고친다(allSites:true). " +
       "urls: 쉼표로 여러 개, !로 시작하면 제외. 입력 방식은 규칙마다 하나: 기본(options.urlBasic, 새 규칙 기본) 또는 정규식(options.urlRegex). " +
-      "기본: a.com(그 주소 루트만, http·https 둘 다) · a.com/**(모든 경로) · *.a.com(하위 도메인, a.com 포함) · *(모든 사이트). 스킴은 써도 무시되고 저장 때 지워진다. a.com/a 같은 경로는 못 쓴다(정규식 사용). " +
+      "기본: a.com(모든 경로, http·https 둘 다) · a.com/(루트만) · *.a.com(하위 도메인만, a.com 자신은 제외) · a.com/*(한 단계 경로만, /x 는 되고 /x/y 는 안 됨) · *(모든 사이트). 스킴은 써도 무시되고 저장 때 지워진다. a.com/a 같은 경로는 못 쓴다(정규식 사용). " +
       "정규식: /정규식/플래그 만 쓴다. 주소 전체(location.href)에 검사(안의 쉼표 괜찮음). " +
       "options: off, urlBasic, urlRegex, isoJS(격리 실행), isoCSS(insertCSS 로 강제), deepJS/deepCSS(모든 프레임), atStartJS(document_start) 또는 onLoadJS(window load 뒤), spaJS(SPA 로 주소가 바뀌면 다시 실행. 떠날 때 규칙의 PagePatch.onLeave(fn) 이 불림), important(자동 !important), offJS · offCSS(이 규칙의 JS · CSS 만 끄기, 코드는 그대로).",
     inputSchema: obj({

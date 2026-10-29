@@ -11,7 +11,7 @@ import { convertPattern, parseUrls, compilePattern, ruleMatchesUrl, urlGuardCode
 import { addImportant, lineCommentsToBlock } from "../src/css.js";
 import { importData, exportState } from "../src/import.js";
 import { mergeStates, sameState } from "../src/merge.js";
-import { normalizeRule, normalizeState, normalizeSettings, normalizeHost, GLOBAL_ID, isGlobal, siteName } from "../src/model.js";
+import { normalizeJump, normalizeRule, normalizeState, normalizeSettings, normalizeHost, GLOBAL_ID, isGlobal, siteName } from "../src/model.js";
 import { toItems, fromItems, diffItems, ITEM_MAX } from "../src/syncitems.js";
 import { jsCode, jsSources, cssCode, buildScripts } from "../src/inject.js";
 import { toQwerty, toHangul } from "../src/hangul.js";
@@ -59,10 +59,15 @@ test("parseUrls: 제외·잘못된 패턴", () => {
 test("주소 방식: 기본(루트만 · /** · *.) · 정규식 · 옛 규칙 옮기기", () => {
   const B = { urlBasic: true };
   const m = (urls, flags, url) => ruleMatchesUrl({ urls, flags }, url);
-  assert.ok(m("a.com", B, "https://a.com/") && m("a.com", B, "http://a.com/?x=1"));
-  assert.ok(!m("a.com", B, "https://a.com/b") && !m("a.com", B, "https://c.a.com/"));
+  assert.ok(m("a.com", B, "https://a.com/") && m("a.com", B, "http://a.com/?x=1") && m("a.com", B, "https://a.com/b/c") && m("a.com/", B, "https://a.com/") && !m("a.com/", B, "https://a.com/b"));
+  assert.ok(m("a.com/*/b", B, "https://a.com/x/b") && !m("a.com/*/b", B, "https://a.com/x/z/b") && !m("a.com/*/b", B, "https://a.com/b"));
+  assert.ok(!m("a.com", B, "https://c.a.com/"));
   assert.ok(m("a.com/**", B, "https://a.com/b/c") && !m("a.com/**", B, "https://c.a.com/"));
-  assert.ok(m("*.a.com", B, "https://c.a.com/") && m("*.a.com", B, "https://a.com/"));
+  assert.ok(m("*.a.com", B, "https://c.a.com/x/y") && !m("*.a.com", B, "https://a.com/") && !m("*.a.com/**", B, "https://a.com/x"));
+  assert.ok(m("*.a.com/**", B, "https://c.d.a.com/x/y?q#h") && m("a.com, *.a.com", B, "https://a.com/"));
+  assert.ok(m("a.com/*", B, "https://a.com/x") && !m("a.com/*", B, "https://a.com/x/y") && m("a.com/*", B, "https://a.com/x?q=1/2"));
+  assert.ok(m("a.com/**", B, "https://a.com/x/y") && m("a.com/*/v", B, "https://a.com/u/v") && !m("a.com/*/v", B, "https://a.com/u/w/v") && m("a.com/*/**", B, "https://a.com/u/w/v"));
+  assert.ok(!m("*.a.com/*, !b.a.com/**", B, "https://b.a.com/x") && m("*.a.com/*, !b.a.com/**", B, "https://c.a.com/x"));
   assert.ok(m("a.com/a", B, "https://a.com/a?x=1") && !m("a.com/a", B, "https://a.com/a/b"));
   assert.ok(m("https://*/*", B, "http://x.test/y"));
   const R = { urlRegex: true };
@@ -183,7 +188,7 @@ test("사이트 목록은 설정과 같이 합치고 storage.sync 로 오간다"
   assert.ok(sameState(fromItems(toItems(state)), state));
 });
 
-// ── 검색 이동 (StayTab 의 주소창 키워드) ──
+// ── 검색 이동 (주소창 검색어) ──
 test("한/영 자판 변환", () => {
   assert.equal(toQwerty("지도"), "wleh");
   assert.equal(toQwerty("닭값"), "ekfrrkqt"); // 겹받침
@@ -449,6 +454,21 @@ test("브리지 왕복 (도구 호출)", async () => {
     await new Promise((r) => host.on("close", r));
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+// ── 검색 이동: 쓰지 않는 검색어 ──
+test("검색 이동: 사용 안 함(off) 검색어는 규칙 · 대비책에서 빠지고 저장 모양은 그대로", () => {
+  const jumps = {
+    지도: { id: "지도", url: "https://map.test/", updated: 1 },
+    메일: { id: "메일", url: "https://mail.test/", off: true, updated: 1 },
+  };
+  assert.deepEqual(ruleCandidates(jumps).map((c) => c.url), ["https://map.test/"]);
+  assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("지도")}`), "https://map.test/");
+  assert.equal(goes(jumps, `https://www.google.com/search?q=${encodeURIComponent("메일")}`), null); // 쓰지 않음 → 검색으로 간다
+  // 정리: off 는 true 일 때만 남긴다 (예전 데이터와 같은 모양 유지)
+  assert.deepEqual(normalizeJump({ id: "지 도", url: "https://map.test/", updated: 1 }), { id: "지도", url: "https://map.test/", updated: 1 });
+  assert.deepEqual(normalizeJump({ id: "메일", url: "https://mail.test/", off: true, updated: 2 }), { id: "메일", url: "https://mail.test/", off: true, updated: 2 });
+  assert.equal("off" in normalizeJump({ id: "x", url: "https://x.test/", off: false, updated: 1 }), false);
 });
 
 // ── 데이터 비교 ──

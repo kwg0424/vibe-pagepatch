@@ -64,8 +64,9 @@ export function splitUrlItems(text) {
 const REGEX_ITEM = /^!?\/([\s\S]+)\/([a-z]*)$/i;
 
 // 기본 방식 한 항목 → match pattern 목록 (안 되면 null)
-//   a.com → 루트만 · a.com/** · a.com/* → 모든 경로 · *.a.com → 하위 도메인 (a.com 자신 포함, 브라우저 규칙) · * → 모든 사이트
-//   경로를 쓰면 그 경로만: a.com/a · a.com/@x/videos. 경로의 *는 글자 아무거나(/ 도 포함): a.com/*/videos. 쿼리(?…)가 붙어도 맞는다.
+//   a.com → 모든 경로 · a.com/ → 루트만 · a.com/* → 한 단계 경로만 (/x 는 되고 /x/y 는 안 됨) · *.a.com → 하위 도메인만 (a.com 자신은 제외) · * → 모든 사이트
+//   경로를 쓰면 그 경로만: a.com/a · a.com/@x/videos. 경로의 *는 / 를 뺀 글자 아무거나, **는 / 포함 아무거나: a.com/*/videos. 쿼리(?…)가 붙어도 맞는다.
+//   브라우저 match pattern 보다 엄격한 항목(*.a.com · 경로의 *)은 등록은 브라우저 패턴으로 넓게 하고, 실행할 때 정규식으로 다시 거른다 (strictRegex)
 //   스킴은 항상 http · https 둘 다. 앞에 써도 무시하고 저장할 때 지운다(normalizeBasicUrls). 포트(:3000)는 써도 된다
 const BASIC_ITEM = /^(?:(https?|\*):\/\/)?(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(:\d+)?(\/\S*)?$/i;
 function basicPatterns(item) {
@@ -75,13 +76,29 @@ function basicPatterns(item) {
   const base = `*://${host.toLowerCase()}${port}`;
   let list;
   if (!path && host === "*") list = [`${base}/*`];
-  else if (!path || path === "/") list = [`${base}/`, `${base}/?*`]; // 루트: 쿼리가 붙어도
+  else if (!path) list = [`${base}/*`]; // 경로를 안 쓰면 그 사이트 모든 경로
+  else if (path === "/") list = [`${base}/`, `${base}/?*`]; // 루트만: 쿼리가 붙어도
   else if (/^\/\*+$/.test(path)) list = [`${base}/*`];
   else {
     const p = path.replace(/\*+/g, "*");
     list = p.endsWith("*") ? [base + p] : [base + p, `${base}${p}?*`]; // 끝이 * 가 아니면 쿼리가 붙은 주소도
   }
   return list.every(isValidMatchPattern) ? list : null;
+}
+
+// 브라우저 패턴보다 엄격해야 하는 항목의 정규식 (주소 전체 href 검사). 필요 없으면 null
+function strictRegex(item) {
+  const m = BASIC_ITEM.exec(item);
+  if (!m) return null;
+  const [, , host, port = "", path = ""] = m;
+  const subOnly = host.startsWith("*.");
+  const single = path && path !== "/" && path.replace(/\*\*/g, "").includes("*");
+  if (!subOnly && !single) return null;
+  const h = host.toLowerCase();
+  const hostRe = h === "*" ? "[^/:]*" : subOnly ? `[^/:]+\\.${escape(h.slice(2))}` : escape(h);
+  const portRe = port ? escape(port) : "(?::\\d+)?";
+  const pathRe = !path ? "/.*" : path === "/" ? "/" : path.split("**").map((part) => part.split("*").map(escape).join("[^/?#]*")).join(".*");
+  return { source: `^https?://${hostRe}${portRe}${pathRe}(?:\\?[^#]*)?(?:#.*)?$`, flags: "i", label: item.toLowerCase(), hint: basicPatterns(item) };
 }
 
 // 기본 방식 주소 글을 저장 모양으로: 스킴을 지운다 (https://*/* → */*). 올바르지 않은 항목은 그대로 둔다
@@ -120,8 +137,11 @@ export function parseUrls(text, flags = {}) {
       continue;
     }
     if (flags.urlBasic) {
-      const list = basicPatterns(item.replace(/^!\s*/, ""));
+      const body = item.replace(/^!\s*/, "");
+      const list = basicPatterns(body);
+      const strict = list && strictRegex(body);
       if (!list) invalid.push(item);
+      else if (strict) (exclude ? excludeRegex : regex).push(strict);
       else (exclude ? excludeMatches : matches).push(...list);
       continue;
     }
@@ -160,7 +180,9 @@ export function migrateLegacyUrls(urls, flags) {
 // 등록할 match pattern. 정규식이 들어 있으면 모든 http(s) 페이지에 넣고 실행할 때 urlGuard 로 거른다
 export function registrationPatterns(p) {
   if (!p.regex.length && !p.excludeRegex.length) return { matches: p.matches, excludeMatches: p.excludeMatches, guard: false };
-  return { matches: p.regex.length ? ["*://*/*"] : p.matches, excludeMatches: p.excludeMatches, guard: true };
+  const hinted = p.regex.every((x) => x.hint); // 기본 방식의 엄격한 항목은 브라우저 패턴으로 먼저 좁힌다
+  const wide = p.regex.length ? (hinted ? [...p.matches, ...p.regex.flatMap((x) => x.hint)] : ["*://*/*"]) : p.matches;
+  return { matches: wide, excludeMatches: p.excludeMatches, guard: true };
 }
 
 // 페이지 안에서 규칙 주소를 다시 검사하는 식 (정규식이 있는 규칙만). 결과: true/false

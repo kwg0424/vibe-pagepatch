@@ -1,4 +1,4 @@
-/* StayTab · EdgeMark 와 같은 모양 */
+/* 팝업 */
 body { width: 320px; padding: 12px; font-size: 13px; line-height: 1.4; }
 header { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 header img { width: 20px; height: 20px; }
