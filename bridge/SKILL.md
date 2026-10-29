@@ -36,8 +36,8 @@ description: Edge 확장 PagePatch 로 웹페이지의 CSS/JS 를 고칠 때 (�
 - **'모든 사이트' 규칙(id `p:global`)은 기본으로 고치지 않는다.** 사용자가 "모든 사이트에 적용"이라고 직접 요청했을 때만 `allSites: true` 로 저장한다. 이 규칙은 `page_info` · `rules_list` 에 나오지 않는다.
 
 ## 원칙
-- CSS 로 되는 일은 JS 로 하지 않는다. 숨기기는 `display: none !important`.
-- 페이지 스타일을 이기려면 `!important` 를 붙인다 (또는 규칙 옵션 `important`).
+- CSS 로 되는 일은 JS 로 하지 않는다. 숨기기는 `display: none`.
+- 페이지 스타일을 이기려면 CSS 에 `!important` 를 직접 쓰지 말고 규칙 옵션 `important`(자동 !important)를 켠다. 새 규칙은 이미 켜져 있고, `css_preview` 는 `important: true` 로 부른다. 기존 규칙에서 꺼져 있고 필요하면 `options: { important: true }` 로 켠다 (따로 알리지 않는다). CSS 에 `!important` 를 직접 쓰는 것은 자동 적용이 안 맞는 드문 경우(선언 일부에만 필요, 켠 규칙의 다른 선언은 그대로 두고 싶을 때)뿐이다.
 - 셀렉터: 해시 같은 자동 생성 class(`style_inner__hZkBc`)는 배포 때마다 바뀐다. id·구조·속성(`[role]`, `[aria-label]`, `[data-*]`) 셀렉터를 먼저 쓰고, 꼭 써야 하면 `[class^="style_inner__"]` 처럼 앞부분만 맞춘다.
 - 너무 넓게 숨기지 않는다. `page_query` 로 개수를 확인한다 (생각보다 많이 맞으면 좁힌다).
 - URL 범위는 필요한 만큼만 (`*://search.naver.com/*`). 사이트 전체면 도메인만 써도 된다 (`naver.com` → 하위 도메인까지). match pattern 으로 안 되면 정규식: `/^https:\/\/(www\.)?youtube\.com\/(watch|shorts)/` (주소 전체에 검사, `!/…/` 는 제외).

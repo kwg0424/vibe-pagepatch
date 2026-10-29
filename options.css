@@ -1,18 +1,26 @@
 html, body { height: 100%; }
-body { display: flex; flex-direction: column; overflow: hidden; }
+/* 상단 메뉴까지 한 배경: 유리 카드 뒤에 비칠 은은한 색 */
+body {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 90%, color-mix(in srgb, var(--ok) 22%, transparent), transparent 45%), var(--page);
+  background-attachment: fixed;
+}
 .grow { flex: 1; }
 .mono { font-family: var(--mono); font-size: 13px; }
 
 .top {
   display: flex; align-items: center; gap: 10px; padding: 10px 16px;
-  border-bottom: 1px solid var(--line); flex: none; background: var(--bg);
+  border-bottom: 1px solid rgba(255, 255, 255, .2); flex: none;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); /* 유리 효과 */
 }
 .top strong { font-size: 15px; }
 .top nav { display: flex; gap: 4px; margin-left: 16px; }
 .tab { border: 0; padding: 6px 12px; color: var(--muted); }
 .tab:hover { background: var(--bg-hover); }
 .tab.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
-.banner { margin: 10px 16px 0; flex: none; }
+.banner { margin: 10px 16px; flex: none; } /* 위아래 여백: 아래 화면(유리 배경)에 붙어 보이지 않게 */
 
 .view { flex: 1; min-height: 0; }
 .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
@@ -123,14 +131,16 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 #versions .by.claude { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
 /* ── 설정 ── */
-.settings { overflow: auto; background: var(--page); }
+.settings { overflow: auto; }
 .card {
   max-width: 760px;
   margin: 32px auto;
   padding: 24px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); /* 유리 효과 */
+  border: 1px solid rgba(255, 255, 255, .28);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .15);
+  border-radius: 14px;
 }
 .card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .card-head img { width: 40px; height: 40px; }
@@ -196,8 +206,8 @@ pre.code { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; wh
 #jEmpty { margin-top: 12px; }
 @media (max-width: 640px) { .j-form { flex-wrap: wrap; } .j-form .input.j-kw { flex: 1 1 100%; } }
 
-dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); width: 340px; padding: 18px; }
-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+dialog { border: 1px solid rgba(255, 255, 255, .28); border-radius: 14px; background: color-mix(in srgb, var(--bg) 60%, transparent); -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); box-shadow: 0 10px 32px rgba(0, 0, 0, .3); color: var(--text); width: 340px; padding: 18px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.2); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
 .buttons.stack { flex-direction: column; }
 .buttons.stack button { justify-content: center; }
@@ -271,3 +281,21 @@ dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
   #aceCmpL .ace_marker-layer .ace_active-line, #aceCmpR .ace_marker-layer .ace_active-line,
   #aceCmpL .ace_gutter-active-line, #aceCmpR .ace_gutter-active-line { background-color: #1c1f24; }
 }
+
+/* ── 유리 느낌: 사이트 규칙 · 데이터 비교 (설정 카드와 같은 모양) ── */
+#rules { padding: 12px; gap: 12px; }
+#compare { padding: 12px; }
+.side, .editor, .cmp {
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, .28);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .15);
+  border-radius: 14px;
+}
+.side { overflow: hidden; }
+.cmp { overflow: hidden; }
+#ruleList > li { background: color-mix(in srgb, var(--bg) 55%, transparent); }
+
+/* 경고 배너의 버튼: 글자처럼 보이지 않게 색을 채운 버튼으로 */
+.banner .btn { background: var(--warn); border-color: var(--warn); color: var(--bg); font-weight: 700; padding: 4px 14px; margin-left: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.banner .btn:hover { background: color-mix(in srgb, var(--warn) 85%, #fff); border-color: var(--warn); }

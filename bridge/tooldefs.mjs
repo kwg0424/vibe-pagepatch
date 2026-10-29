@@ -40,7 +40,7 @@ export const TOOLS = [
   {
     name: "css_preview",
     description: "CSS 를 저장하지 않고 지금 탭에만 임시로 적용한다. 다시 부르면 바뀌고(이전 미리보기 대체), preview_clear 나 새로고침이면 사라진다. 사용자에게 결과를 먼저 보여 줄 때.",
-    inputSchema: obj({ tabId, css: { type: "string" }, important: { type: "boolean", description: "선언마다 !important 를 붙여서" } }, ["css"]),
+    inputSchema: obj({ tabId, css: { type: "string" }, important: { type: "boolean", description: "선언마다 !important 를 자동으로 붙여서. 페이지 스타일을 이겨야 하면 CSS 에 직접 쓰지 말고 이것을 true 로 (rule_save 의 options.important 와 같음)" } }, ["css"]),
   },
   {
     name: "js_preview",
@@ -124,4 +124,4 @@ export const INSTRUCTIONS =
   "순서: page_info → page_outline/page_query 로 셀렉터 찾기 → css_preview 로 보여 주기(필요하면 page_screenshot) → 사용자가 좋다고 하면 rule_save → preview_clear. " +
   "같은 사이트 규칙이 있으면 새로 만들지 말고 그 규칙에 더한다(rule_get 으로 지금 내용 먼저). CSS 로 되는 일은 JS 로 하지 않는다. " +
   "규칙의 notes(AI 규칙)는 사용자가 쓴 화면 수정 의도다. 규칙이 안 먹으면(사이트 UI 가 바뀜) notes 의 의도대로 지금 화면에서 셀렉터를 다시 찾아 CSS·JS 를 고친다. " +
-  "해시 같은 자동 생성 class(style_x__a1B2c)보다 id·구조·속성 셀렉터를 쓰고, 꼭 써야 하면 [class^=\"style_x__\"] 처럼. 페이지 스타일을 이기려면 !important.";
+  "해시 같은 자동 생성 class(style_x__a1B2c)보다 id·구조·속성 셀렉터를 쓰고, 꼭 써야 하면 [class^=\"style_x__\"] 처럼. 페이지 스타일을 이기려면 CSS 에 !important 를 직접 쓰지 말고 자동 !important(css_preview 의 important:true, 규칙 옵션 important)를 쓴다.";
