@@ -7,7 +7,7 @@ import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { convertPattern, parseUrls, compilePattern, ruleMatchesUrl, urlGuardCode } from "../src/urls.js";
+import { convertPattern, parseUrls, compilePattern, ruleMatchesUrl, urlGuardCode, normalizeBasicUrls } from "../src/urls.js";
 import { addImportant, lineCommentsToBlock } from "../src/css.js";
 import { importData, exportState } from "../src/import.js";
 import { mergeStates, sameState } from "../src/merge.js";
@@ -59,6 +59,10 @@ test("parseUrls: 제외·잘못된 패턴", () => {
 test("주소 방식: 기본(루트만 · /** · *.) · 정규식 · 옛 규칙 옮기기", () => {
   const B = { urlBasic: true };
   const m = (urls, flags, url) => ruleMatchesUrl({ urls, flags }, url);
+  // 포트는 무시한다: localhost:8080 = localhost (모든 포트). 등록 패턴에도 숫자 포트가 없다
+  assert.deepEqual(parseUrls("localhost:8080", B).matches, ["*://localhost/*"]);
+  assert.equal(normalizeBasicUrls("http://localhost:8080/a, !a.com:3000"), "localhost/a, !a.com");
+  assert.ok(m("localhost:8080", B, "http://localhost:9090/x") && m("localhost", B, "http://localhost:3000/"));
   assert.ok(m("a.com", B, "https://a.com/") && m("a.com", B, "http://a.com/?x=1") && m("a.com", B, "https://a.com/b/c") && m("a.com/", B, "https://a.com/") && !m("a.com/", B, "https://a.com/b"));
   assert.ok(m("a.com/*/b", B, "https://a.com/x/b") && !m("a.com/*/b", B, "https://a.com/x/z/b") && !m("a.com/*/b", B, "https://a.com/b"));
   assert.ok(!m("a.com", B, "https://c.a.com/"));

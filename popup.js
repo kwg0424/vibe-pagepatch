@@ -154,10 +154,6 @@ if (!info.injectable) {
   $("#unsupported").hidden = false;
   $("#main").hidden = true;
 } else {
-  try {
-    $("#host").textContent = new URL(tab.url).host;
-    $("#host").hidden = false;
-  } catch {}
   renderUnlock();
   render();
 }

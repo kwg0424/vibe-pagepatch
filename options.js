@@ -1213,7 +1213,7 @@ function route() {
   } else if (hash.startsWith("new=")) {
     let urls = "";
     try {
-      urls = `${new URL(hash.slice(4)).host}/*`; // 기본 방식: 이 사이트(http · https)의 모든 경로
+      urls = new URL(hash.slice(4)).hostname; // 기본 방식: 이 사이트(http · https, 모든 포트)의 모든 경로. 포트와 /* 는 붙이지 않는다 (/* 는 한 단계 경로만)
     } catch {}
     let host = "";
     try {

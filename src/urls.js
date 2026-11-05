@@ -67,13 +67,14 @@ const REGEX_ITEM = /^!?\/([\s\S]+)\/([a-z]*)$/i;
 //   a.com → 모든 경로 · a.com/ → 루트만 · a.com/* → 한 단계 경로만 (/x 는 되고 /x/y 는 안 됨) · *.a.com → 하위 도메인만 (a.com 자신은 제외) · * → 모든 사이트
 //   경로를 쓰면 그 경로만: a.com/a · a.com/@x/videos. 경로의 *는 / 를 뺀 글자 아무거나, **는 / 포함 아무거나: a.com/*/videos. 쿼리(?…)가 붙어도 맞는다.
 //   브라우저 match pattern 보다 엄격한 항목(*.a.com · 경로의 *)은 등록은 브라우저 패턴으로 넓게 하고, 실행할 때 정규식으로 다시 거른다 (strictRegex)
-//   스킴은 항상 http · https 둘 다. 앞에 써도 무시하고 저장할 때 지운다(normalizeBasicUrls). 포트(:3000)는 써도 된다
+//   스킴은 항상 http · https 둘 다. 앞에 써도 무시하고 저장할 때 지운다(normalizeBasicUrls).
+//   포트(:3000)도 스킴처럼 무시하고 저장할 때 지운다 → localhost:3000 = localhost (모든 포트). 브라우저 등록이 숫자 포트를 받지 않는다 ("Invalid port")
 const BASIC_ITEM = /^(?:(https?|\*):\/\/)?(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(:\d+)?(\/\S*)?$/i;
 function basicPatterns(item) {
   const m = BASIC_ITEM.exec(item);
   if (!m) return null;
   const [, , host, port = "", path = ""] = m; // 스킴은 써도 무시한다 (항상 http · https 둘 다)
-  const base = `*://${host.toLowerCase()}${port}`;
+  const base = `*://${host.toLowerCase()}`; // 포트는 무시 (모든 포트)
   let list;
   if (!path && host === "*") list = [`${base}/*`];
   else if (!path) list = [`${base}/*`]; // 경로를 안 쓰면 그 사이트 모든 경로
@@ -107,7 +108,9 @@ export function normalizeBasicUrls(text) {
     .map((item) => {
       const bang = item.startsWith("!") ? "!" : "";
       const rest = item.slice(bang.length).trim().replace(/^(https?|\*):\/\//i, "");
-      return basicPatterns(rest) ? bang + rest : item;
+      const m = BASIC_ITEM.exec(rest);
+      const plain = m ? m[2] + (m[4] || "") : rest; // 포트를 지운다
+      return basicPatterns(plain) ? bang + plain : item;
     })
     .join(", ");
 }
