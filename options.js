@@ -8,10 +8,104 @@ import { initCompare } from "./compare.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
+// 목록 페이징: 20개씩. 20개 이하면 페이지 표시를 숨긴다.
+const PAGE_SIZE = 20;
+const makePager = (el, rerender) => ({ el: $(el), rerender, page: 1, key: "", lastId: null });
+// items 를 현재 페이지 몫만 잘라 돌려주고 페이지 표시를 맞춘다. key 가 바뀌면(검색어 등) 1쪽으로
+function paged(p, items, key = "") {
+  if (key !== p.key) {
+    p.key = key;
+    p.page = 1;
+  }
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  p.page = Math.min(Math.max(1, p.page), pages);
+  p.el.hidden = items.length <= PAGE_SIZE;
+  p.el.replaceChildren();
+  if (!p.el.hidden) {
+    const go = (n) => {
+      p.page = n;
+      p.rerender();
+    };
+    const btn = (label, n, { on = false, off = false, title = "" } = {}) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.title = title || `${n}쪽`;
+      b.classList.toggle("on", on);
+      b.disabled = off;
+      b.onclick = () => go(n);
+      return b;
+    };
+    const nums = [];
+    for (let n = 1; n <= pages; n++) if (pages <= 7 || n === 1 || n === pages || Math.abs(n - p.page) <= 1) nums.push(n);
+    p.el.append(btn("‹", p.page - 1, { off: p.page === 1, title: "이전" }));
+    nums.forEach((n, i) => {
+      if (i && n - nums[i - 1] > 1) {
+        const gap = document.createElement("span");
+        gap.className = "gap";
+        gap.textContent = "…";
+        p.el.append(gap);
+      }
+      p.el.append(btn(String(n), n, { on: n === p.page }));
+    });
+    p.el.append(btn("›", p.page + 1, { off: p.page === pages, title: "다음" }));
+  }
+  return items.slice((p.page - 1) * PAGE_SIZE, p.page * PAGE_SIZE);
+}
+let rulePager, jPager, uPager; // 아래 목록 그리는 곳에서 만든다 (함수는 호출 때 쓰이므로 순서 무관)
+
+// 저장하는 동안 누른 버튼·체크박스 옆에 돌아가는 표시를 보이고 막는다.
+// 누른 컨트롤은 이벤트가 퍼지는 동안(같은 작업 안)에 시작된 요청에 붙인다. 읽기 요청·사이트 규칙 저장 버튼(따로 처리)은 제외
+const WRITES = new Set(["jump:delete", "jump:save", "jump:toggle", "rule:delete", "rule:toggle", "unlock:add", "unlock:remove", "unlock:set"]); // 설정 탭의 저장은 표시하지 않는다
+let pressed = null;
+for (const type of ["change", "submit", "click"]) {
+  document.addEventListener(
+    type,
+    (e) => {
+      const t = type === "submit" ? e.target.querySelector?.('button[type="submit"], button:not([type])') : e.target.closest?.("button, input, select");
+      if (!t || t.classList.contains("busy")) return;
+      pressed = t;
+      setTimeout(() => {
+        if (pressed === t) pressed = null;
+      }, 0);
+    },
+    true
+  );
+}
+let uiBusy = 0; // 표시 중인 컨트롤 수. 그동안은 저장소 변경으로 목록을 다시 그리지 않는다 (표시가 사라지지 않게)
+let uiPending = false;
+function startBusy(el) {
+  uiBusy++;
+  const wasDisabled = el.disabled;
+  let spin = null;
+  if (el.tagName === "BUTTON") el.classList.add("busy");
+  else {
+    spin = document.createElement("span");
+    spin.className = "spin";
+    el.after(spin);
+  }
+  el.disabled = true;
+  return () => {
+    el.classList.remove("busy");
+    spin?.remove();
+    el.disabled = wasDisabled;
+    if (--uiBusy === 0 && uiPending) {
+      uiPending = false;
+      reload().catch(() => {});
+    }
+  };
+}
+
 const send = async (action, data = {}) => {
-  const res = await chrome.runtime.sendMessage({ action, ...data });
-  if (!res?.ok) throw new Error(res?.error || "실패했습니다");
-  return res;
+  const el = WRITES.has(action) && pressed?.isConnected ? pressed : null;
+  const stop = el ? startBusy(el) : null;
+  try {
+    const res = await chrome.runtime.sendMessage({ action, ...data });
+    if (!res?.ok) throw new Error(res?.error || "실패했습니다");
+    return res;
+  } finally {
+    stop?.();
+  }
 };
 
 let data = null; // background 의 state
@@ -37,7 +131,30 @@ function ago(t) {
   return new Date(t).toLocaleString();
 }
 
+// 사용자 스크립트가 꺼져 있으면 데이터 비교 · 설정 탭만 쓸 수 있다 (나머지 탭은 막고, 처음엔 설정 탭을 보여 준다)
+const OPEN_VIEWS = ["compare", "settings"];
+let viewNow = "rules";
+let extensionsOpened = false;
+function applyScriptsGate() {
+  const off = !!data && !data.userScripts;
+  for (const b of $$(".tab")) {
+    const blocked = off && !OPEN_VIEWS.includes(b.dataset.view);
+    b.disabled = blocked;
+    b.title = blocked ? "사용자 스크립트를 켜야 쓸 수 있습니다" : "";
+  }
+  $("#newRule").disabled = off;
+  // 설정 탭에서는 "확장 관리 열기"를 노랗게 깜박여 눈길을 끈다 (누르면 멈춤)
+  $("#openExtensions").classList.toggle("attention", off && viewNow === "settings" && !extensionsOpened);
+  // 경고는 막힌 탭이 아닌 곳(데이터 비교 · 설정)에서는 보이지 않는다 (설정 탭에 켜는 방법이 이미 있다)
+  $("#usBanner").hidden = !off || OPEN_VIEWS.includes(viewNow);
+}
+
 function showView(view) {
+  if (data && !data.userScripts && !OPEN_VIEWS.includes(view)) {
+    view = "settings";
+    if (location.hash !== "#settings") history.replaceState(null, "", "#settings");
+  }
+  viewNow = view;
   for (const b of $$(".tab")) b.classList.toggle("active", b.dataset.view === view);
   $("#rules").hidden = view !== "rules";
   $("#jump").hidden = view !== "jump";
@@ -46,6 +163,7 @@ function showView(view) {
   $("#settings").hidden = view !== "settings";
   if (view === "rules") editor.resize();
   if (view === "compare") compareTab?.resize();
+  applyScriptsGate();
 }
 // 규칙 탭은 편집 중이던 규칙 주소로, 나머지는 #탭이름
 for (const b of $$(".tab")) b.onclick = () => (location.hash = b.dataset.view === "rules" ? (current?.id ? `rule=${current.id}` : "") : b.dataset.view);
@@ -145,8 +263,11 @@ function isDirty() {
 
 function onEdit() {
   const dirty = isDirty();
-  $("#dirtyMark").textContent = dirty ? "저장 안 됨" : current?.id ? "" : "새 규칙";
-  $("#save").disabled = !dirty && !!current?.id;
+  const mark = $("#dirtyMark");
+  mark.textContent = !dirty && !current?.id ? "새 규칙" : "";
+  $("#save").classList.toggle("dirty", dirty); // 바뀐 내용이 있으면 저장 버튼이 꽉 찬 파란색, 목록 제목 오른쪽에 주황 점
+  markDirtyInList(dirty);
+  $("#save").disabled = saving || (!dirty && !!current?.id);
   $("#cancel").disabled = !dirty;
   updateCounts();
   updateUrlInfo();
@@ -290,7 +411,7 @@ document.addEventListener("keydown", (e) => {
 let saving = false;
 
 async function save() {
-  if (!current) return;
+  if (!current || saving) return; // 저장 중에는 다시 누르지 못한다 (Ctrl+S 포함)
   trimTrailingSpaces(sessions.css);
   trimTrailingSpaces(sessions.js);
   const f = readForm();
@@ -300,11 +421,12 @@ async function save() {
     return;
   }
   saving = true;
+  setSaveBusy(true);
   try {
-    // 응답이 15초 넘게 없으면 실패로 본다 (눌러도 반응 없이 멈춘 것처럼 보이지 않게)
+    // 응답이 3초 넘게 없으면 실패로 본다 (눌러도 반응 없이 멈춘 것처럼 보이지 않게)
     const res = await Promise.race([
       send("rule:save", { rule: { ...(current.id ? { id: current.id } : {}), ...f } }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("응답이 없습니다")), 15000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("응답이 없습니다")), 3000)),
     ]);
     current = { id: res.rule.id, original: structuredClone(res.rule) };
     await reload();
@@ -316,7 +438,16 @@ async function save() {
     await recoverSave(f, e);
   } finally {
     saving = false;
+    setSaveBusy(false);
   }
+}
+
+// 저장하는 동안 저장 버튼 옆에 돌아가는 표시를 보이고 버튼을 막는다
+function setSaveBusy(on) {
+  const b = $("#save");
+  b.classList.toggle("busy", on);
+  if (on) b.disabled = true;
+  else onEdit(); // 저장 결과(바뀐 내용 여부)에 맞게 다시 맞춘다
 }
 
 // 저장 요청이 오류로 끝났어도 저장소에는 들어갔을 수 있다 → 다시 읽어서 같으면 저장된 것으로 맞추고, 아니면 이유를 오래 보여 준다
@@ -413,6 +544,7 @@ let openFolder = null; // 열린 폴더 이름
 localStorage.removeItem("openFolders"); // 예전(여러 개 열기) 기억 지우기
 
 function renderList() {
+  queueMicrotask(() => markDirtyInList(isDirty())); // 다시 그린 뒤에도 * 유지
   const q = $("#search").value.trim().toLowerCase();
   const ul = $("#ruleList");
   ul.replaceChildren();
@@ -426,7 +558,15 @@ function renderList() {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(r);
   }
-  for (const [name, rules] of groups) {
+  rulePager ||= makePager("#rulePager", () => renderList());
+  const entries = [...groups];
+  if (current?.id !== rulePager.lastId) {
+    // 편집할 규칙이 바뀌면 그 규칙이 있는 쪽을 보여 준다
+    rulePager.lastId = current?.id;
+    const at = entries.findIndex(([, rs]) => rs.some((r) => r.id === current?.id));
+    if (at >= 0) rulePager.page = Math.floor(at / PAGE_SIZE) + 1;
+  }
+  for (const [name, rules] of paged(rulePager, entries, q)) {
     if (rules.length === 1) {
       ul.append(ruleItem(rules[0]));
       continue;
@@ -504,6 +644,19 @@ function setFolderOpen(folder, open) {
 }
 
 // inFolder: 폴더 안에서는 이름 대신 주소만 보여 준다
+// 목록에서 편집 중인 규칙의 제목 오른쪽에 주황 점 (폴더 안 규칙이면 폴더 제목)
+function markDirtyInList(dirty) {
+  for (const s of $$("#ruleList .dirty-star")) s.remove();
+  if (!dirty || !current?.id) return;
+  const li = $("#ruleList li.rule.active");
+  const nm = li?.querySelector(".nm") || li?.closest(".folder")?.querySelector(".folder-head .nm");
+  if (!nm) return;
+  const star = document.createElement("span");
+  star.className = "dirty-star";
+  star.title = "저장 안 됨";
+  nm.append(star);
+}
+
 function ruleItem(r, inFolder = false) {
   const li = document.createElement("li");
   li.className = "rule";
@@ -580,7 +733,8 @@ function renderSites() {
   const q = $("#uFilter").value.trim().toLowerCase();
   const hosts = Object.keys(sites).sort();
   const shown = hosts.filter((h) => h.includes(q));
-  const rows = shown.map((host) => {
+  uPager ||= makePager("#uPager", () => renderSites());
+  const rows = paged(uPager, shown, q).map((host) => {
     const tr = document.createElement("tr");
     const tdHost = document.createElement("td");
     tdHost.className = "col-host";
@@ -657,7 +811,10 @@ function setJumpEditing(key, url) {
 
 function renderJumps() {
   const list = jumpRows();
-  const rows = list.map((j, i) => {
+  jPager ||= makePager("#jPager", () => renderJumps());
+  const first = (Math.min(jPager.page, Math.max(1, Math.ceil(list.length / PAGE_SIZE))) - 1) * PAGE_SIZE; // 쓰지 않는 묶음 구분선은 전체 목록 기준으로 본다
+  const rows = paged(jPager, list).map((j, k) => {
+    const i = first + k;
     const tr = document.createElement("tr");
     tr.title = "눌러서 수정";
     tr.classList.toggle("editing", j.id === jEditing);
@@ -947,7 +1104,7 @@ $("#btn-disconnect").onclick = async () => {
 
 function renderSettings() {
   $("#usSection").hidden = data.userScripts;
-  $("#usBanner").hidden = data.userScripts;
+  applyScriptsGate();
   $("#badge").checked = !data.settings.hideBadge;
   renderBrowser();
   renderViewer();
@@ -956,6 +1113,8 @@ function renderSettings() {
 }
 
 $("#openExtensions").onclick = async () => {
+  extensionsOpened = true;
+  $("#openExtensions").classList.remove("attention");
   const url = `edge://extensions/?id=${data.extensionId}`;
   try {
     await chrome.tabs.create({ url });
@@ -1075,6 +1234,10 @@ window.addEventListener("hashchange", route);
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === "local" && (changes.rules || changes.jumps || changes.settings || changes.syncStatus || changes.bridge || changes.syncConfig)) {
     if (busy) return;
+    if (uiBusy) {
+      uiPending = true;
+      return;
+    }
     if ((changes.syncStatus || changes.syncConfig) && Date.now() - lastRunEnd > 1500) message("");
     await reload();
     if (changes.rules && current?.id && !saving) {

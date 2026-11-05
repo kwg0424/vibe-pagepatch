@@ -77,6 +77,14 @@ async function refresh() {
   return result;
 }
 
+// 저장 응답이 열려 있는 탭 때문에 늦어지지 않게: 적용(refresh)은 계속 돌리되, 응답은 최대 ms 만 기다린다.
+// 시간이 지나면 null (저장은 이미 끝났고 적용은 뒤에서 마무리된다)
+async function refreshWithin(ms = 2000) {
+  const run = refresh();
+  run.catch((e) => console.warn("refresh", e)); // 기다리지 않아도 오류가 묻히지 않게
+  return Promise.race([run, new Promise((resolve) => setTimeout(() => resolve(null), ms))]);
+}
+
 let refreshTimer = null;
 function scheduleRefresh() {
   clearTimeout(refreshTimer);
@@ -326,8 +334,8 @@ const handlers = {
     const saved = await saveRule(rule, "user");
     // 저장은 끝났다. 적용(refresh)이 실패해도 저장 결과는 돌려줘서 화면이 '저장 안 됨'으로 남지 않게 한다
     try {
-      const { errors } = await refresh();
-      return { rule: saved, error: errors[saved.id] || null };
+      const done = await refreshWithin();
+      return { rule: saved, error: done?.errors[saved.id] || null };
     } catch (e) {
       console.warn("rule:save refresh", e);
       return { rule: saved, error: `적용 중 오류: ${e?.message || e}` };
@@ -335,12 +343,12 @@ const handlers = {
   },
   async "rule:toggle"({ id, off }) {
     const saved = await saveRule({ id, flags: { off } }, "user");
-    await refresh();
+    await refreshWithin();
     return { rule: saved };
   },
   async "rule:delete"({ id }) {
     await deleteRule(id);
-    await refresh();
+    await refreshWithin();
     return {};
   },
   async "rule:history"({ id }) {

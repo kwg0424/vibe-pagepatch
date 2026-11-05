@@ -60,9 +60,12 @@ function render() {
     const row = document.createElement("div");
     row.className = "row";
     row.classList.toggle("off", r.flags.off);
-    row.title = `${r.urls}\n누르면 편집`;
+    // 사용자 스크립트가 꺼져 있으면 규칙을 켜고 끄거나 편집할 수 없다 (흐리게 막음)
+    const locked = !info.userScripts;
+    row.classList.toggle("locked", locked);
+    row.title = locked ? "사용자 스크립트를 켜야 쓸 수 있습니다" : `${r.urls}\n누르면 편집`;
     row.onclick = (e) => {
-      if (e.target !== box) openOptions(`#rule=${encodeURIComponent(r.id)}`);
+      if (!locked && e.target !== box) openOptions(`#rule=${encodeURIComponent(r.id)}`);
     };
 
     const txt = document.createElement("span");
@@ -92,6 +95,7 @@ function render() {
     box.type = "checkbox";
     box.checked = !r.flags.off;
     box.title = "규칙 켜기/끄기";
+    box.disabled = locked;
     box.onchange = async () => {
       r.flags.off = !box.checked;
       row.classList.toggle("off", r.flags.off);
@@ -108,6 +112,8 @@ function renderUnlock() {
   if (!info.unlock) return;
   $("#uCopy").checked = info.unlock.copy;
   $("#uStrong").checked = info.unlock.strong;
+  for (const id of ["#uCopy", "#uStrong"]) $(id).disabled = !info.userScripts; // 사용자 스크립트가 꺼져 있으면 막는다
+  $("#unlock").classList.toggle("locked", !info.userScripts);
 }
 for (const [id, mode] of [["#uCopy", "copy"], ["#uStrong", "strong"]]) {
   $(id).onchange = async (e) => {
@@ -141,6 +147,8 @@ $("#howto").onclick = (e) => {
   openOptions("#settings");
 };
 $("#userscripts").hidden = info.userScripts;
+$("#new").disabled = !info.userScripts; // 사용자 스크립트가 꺼져 있으면 규칙을 추가할 수 없다
+$("#new").title = info.userScripts ? "" : "사용자 스크립트를 켜야 규칙을 추가할 수 있습니다";
 
 if (!info.injectable) {
   $("#unsupported").hidden = false;

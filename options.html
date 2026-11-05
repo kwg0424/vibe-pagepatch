@@ -23,7 +23,7 @@
 
   <div id="usBanner" class="notice banner" hidden>
     <b>사용자 스크립트 허용이 꺼져 있습니다.</b> JS 규칙이 실행되지 않습니다.
-    <button class="btn small" data-goto="settings">켜는 방법</button>
+    <button class="btn small warn-btn" data-goto="settings">켜는 방법</button>
   </div>
 
   <!-- 규칙 -->
@@ -34,6 +34,7 @@
         <button class="btn primary" id="newRule">+ 새 규칙</button>
       </div>
       <ul id="ruleList"></ul>
+      <nav class="pager" id="rulePager" hidden></nav>
       <p id="noRules" class="muted small" hidden>규칙이 없습니다.</p>
     </aside>
 
@@ -147,6 +148,7 @@
         </thead>
         <tbody id="jRows"></tbody>
       </table>
+      <nav class="pager" id="jPager" hidden></nav>
       <p id="jEmpty" class="desc" hidden>등록된 검색어가 없습니다.</p>
       <p class="desc">검색어는 띄어쓰기를 빼고 저장합니다 (구글 지도 → 구글지도). 사용 중인 검색어가 위에, 쓰지 않는 검색어(회색)가 아래에 가나다순으로 나옵니다. 행을 누르면 위 입력란에 채워져 고칠 수 있고, 다른 주소에 있던 검색어를 넣으면 이 주소로 옮겨집니다. 목록은 규칙과 같이 동기화됩니다.</p>
       <p class="desc">검색어가 전에 가 본 주소로 자동완성되면 Edge 가 그 주소로 가 버립니다 → 자동완성 부분을 Delete 로 지우거나, 목록에서 Shift+Delete 로 지운 뒤 Enter.</p>
@@ -186,6 +188,7 @@
         </thead>
         <tbody id="uRows"></tbody>
       </table>
+      <nav class="pager" id="uPager" hidden></nav>
       <p id="uEmpty" class="desc" hidden>등록된 사이트가 없습니다. 위에서 추가하거나, 사이트에서 PagePatch 아이콘을 눌러 켜세요.</p>
       <p class="desc">켠 것은 바로 적용되고, 끈 것은 해당 사이트를 새로고침하면 적용됩니다. 목록은 규칙과 같이 동기화됩니다.</p>
     </main>

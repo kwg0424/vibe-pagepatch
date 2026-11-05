@@ -125,6 +125,9 @@ input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
 .row.off > span { opacity: 0.5; }
 
 .notice { padding: 9px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); font-size: 13px; }
+/* 알림 안의 눈에 띄는 버튼 (노란 채움) */
+.notice .warn-btn { background: var(--warn); border-color: var(--warn); color: var(--bg); font-weight: 700; padding: 4px 14px; margin-left: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.notice .warn-btn:hover { background: color-mix(in srgb, var(--warn) 85%, #fff); border-color: var(--warn); }
 .notice.error { border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .message { margin: 8px 0 0; font-size: 13px; color: var(--ok); }
 .message.error { color: var(--danger); }

@@ -39,5 +39,11 @@ header img { width: 20px; height: 20px; }
 .empty { color: var(--muted); text-align: center; padding: 18px 0 8px; margin: 0; }
 .actions { display: flex; gap: 8px; margin-top: 12px; }
 .actions button { flex: 1; padding: 7px 8px; }
+#userscripts { margin: 10px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; font-size: 12.5px; white-space: nowrap; } /* 한 줄 */
+#userscripts[hidden] { display: none; }
+#userscripts b { overflow: hidden; text-overflow: ellipsis; }
+#userscripts .warn-btn { margin-left: 0; flex: none; padding: 3px 11px; }
+.row.locked, #unlock.locked { opacity: .5; cursor: not-allowed; }
+.row.locked *, #unlock.locked * { cursor: not-allowed; }
 .msg { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .msg.error { color: var(--danger); }
