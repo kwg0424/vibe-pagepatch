@@ -785,7 +785,7 @@ $("#uFilter").addEventListener("input", renderSites);
 // 저장은 검색어마다 (검색어 → 주소). 화면도 검색어마다 한 줄 (사용 여부 체크 · 쓰지 않는 검색어는 회색으로 아래에) 키워드를 쉼표로 여러 개 넣는다.
 // 키워드는 background 가 띄어쓰기를 지워 저장한다 ("구글 지도" → "구글지도")
 
-let jEditing = null; // 행을 눌러 고치는 중인 검색어
+let jEditing = null; // 행을 눌러 고치는 중인 검색어들 (배열. 같은 주소는 한 줄)
 
 function jMessage(text, isError) {
   const m = $("#jMessage");
@@ -795,17 +795,26 @@ function jMessage(text, isError) {
 }
 
 // 사용 중인 검색어가 먼저(가나다순), 그다음 쓰지 않는 검색어(가나다순)
+// 같은 주소이고 사용 상태도 같은 검색어는 한 줄로 묶는다 → { ids: [검색어들(가나다순)], url, off }
 function jumpRows() {
-  const byName = (a, b) => a.id.localeCompare(b.id, "ko");
-  return [...data.jumps.filter((j) => !j.off).sort(byName), ...data.jumps.filter((j) => j.off).sort(byName)];
+  const byName = (a, b) => a.localeCompare(b, "ko");
+  const groups = new Map();
+  for (const j of data.jumps) {
+    const key = `${j.off ? 1 : 0}\n${j.url}`;
+    if (!groups.has(key)) groups.set(key, { ids: [], url: j.url, off: !!j.off });
+    groups.get(key).ids.push(j.id);
+  }
+  const list = [...groups.values()].map((g) => ({ ...g, ids: g.ids.sort(byName) }));
+  const byFirst = (a, b) => byName(a.ids[0], b.ids[0]);
+  return [...list.filter((g) => !g.off).sort(byFirst), ...list.filter((g) => g.off).sort(byFirst)];
 }
 
-function setJumpEditing(key, url) {
-  jEditing = key;
-  $("#jKeywords").value = key || "";
+function setJumpEditing(keys, url) {
+  jEditing = keys?.length ? keys : null;
+  $("#jKeywords").value = jEditing ? jEditing.join(", ") : "";
   $("#jUrl").value = url || "";
-  $("#jSubmit").textContent = key ? "저장" : "추가";
-  $("#jCancel").hidden = !key;
+  $("#jSubmit").textContent = jEditing ? "저장" : "추가";
+  $("#jCancel").hidden = !jEditing;
   renderJumps();
 }
 
@@ -817,11 +826,11 @@ function renderJumps() {
     const i = first + k;
     const tr = document.createElement("tr");
     tr.title = "눌러서 수정";
-    tr.classList.toggle("editing", j.id === jEditing);
+    tr.classList.toggle("editing", !!jEditing && jEditing[0] === j.ids[0]);
     tr.classList.toggle("off", !!j.off);
     tr.classList.toggle("first-off", !!j.off && i > 0 && !list[i - 1].off); // 쓰지 않는 묶음의 첫 줄에 구분선
     tr.onclick = () => {
-      setJumpEditing(j.id, j.url);
+      setJumpEditing(j.ids, j.url);
       $("#jKeywords").focus();
     };
     const tdOn = document.createElement("td");
@@ -833,7 +842,7 @@ function renderJumps() {
     box.onclick = (e) => e.stopPropagation();
     box.onchange = async () => {
       try {
-        data.jumps = (await send("jump:toggle", { key: j.id, off: !box.checked })).jumps;
+        data.jumps = (await send("jump:toggle", { keys: j.ids, off: !box.checked })).jumps;
       } catch (err) {
         jMessage(err.message, true);
       }
@@ -842,7 +851,7 @@ function renderJumps() {
     tdOn.append(box);
     const tdKw = document.createElement("td");
     tdKw.className = "col-kw";
-    tdKw.textContent = j.id;
+    tdKw.textContent = tdKw.title = j.ids.join(", ");
     const tdUrl = document.createElement("td");
     tdUrl.className = "col-url";
     tdUrl.textContent = j.url;
@@ -853,9 +862,9 @@ function renderJumps() {
     del.textContent = "삭제";
     del.onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm(`검색어 "${j.id}" 를 삭제할까요?\n${j.url}`)) return;
-      data.jumps = (await send("jump:delete", { key: j.id })).jumps;
-      if (j.id === jEditing) setJumpEditing(null);
+      if (!confirm(`검색어 "${j.ids.join(", ")}" 를 삭제할까요?\n${j.url}`)) return;
+      data.jumps = (await send("jump:delete", { keys: j.ids })).jumps;
+      if (jEditing && jEditing[0] === j.ids[0]) setJumpEditing(null);
       else renderJumps();
     };
     tdDel.append(del);
@@ -869,7 +878,7 @@ function renderJumps() {
 $("#jForm").onsubmit = async (e) => {
   e.preventDefault();
   try {
-    const res = await send("jump:save", { url: $("#jUrl").value, keywords: $("#jKeywords").value, oldKey: jEditing });
+    const res = await send("jump:save", { url: $("#jUrl").value, keywords: $("#jKeywords").value, oldKeys: jEditing || [] });
     data.jumps = res.jumps;
     jMessage(`${jEditing ? "저장했습니다" : "추가했습니다"}${res.moved.length ? ` (${res.moved.join(", ")} 는 다른 주소에서 옮겨 옴)` : ""}`);
     setJumpEditing(null);

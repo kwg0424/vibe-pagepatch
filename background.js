@@ -389,7 +389,7 @@ const handlers = {
     return { sites: settings.sites };
   },
   // 검색 이동: 주소 하나에 검색어 여러 개 (쉼표로). 검색어는 띄어쓰기를 지워 저장 ("구글 지도" → "구글지도"). oldKey = 행을 눌러 고치는 중인 검색어
-  async "jump:save"({ url: input, keywords, oldKey }) {
+  async "jump:save"({ url: input, keywords, oldKeys, oldKey }) {
     const url = normalizeUrl(input);
     if (!url) throw new Error("올바른 주소가 아닙니다");
     const keys = String(keywords || "").split(/[,，]/).map((k) => k.trim()).filter(Boolean).map(jumpKey);
@@ -397,15 +397,15 @@ const handlers = {
     if (keys.includes(null)) throw new Error("검색어는 띄어쓰기 빼고 40자 이하로 입력하세요");
     // "지도, wleh" 처럼 다른 검색어의 한/영 모양이면 빼고 하나만 (어차피 자동으로 맞춘다)
     const uniq = [...new Set(keys)].filter((k, i, all) => !all.some((o, j) => j < i && variants(o).includes(k)));
-    const { moved } = await saveJumps(url, uniq, oldKey || null);
+    const { moved } = await saveJumps(url, uniq, oldKeys || (oldKey ? [oldKey] : []));
     return { url, moved, jumps: liveJumps((await getState()).jumps) };
   },
-  async "jump:delete"({ key }) {
-    await deleteJump(key);
+  async "jump:delete"({ key, keys }) {
+    for (const k of keys || [key]) await deleteJump(k);
     return { jumps: liveJumps((await getState()).jumps) };
   },
-  async "jump:toggle"({ key, off }) {
-    await setJumpOff(key, !!off);
+  async "jump:toggle"({ key, keys, off }) {
+    for (const k of keys || [key]) await setJumpOff(k, !!off);
     return { jumps: liveJumps((await getState()).jumps) };
   },
   async import({ json }) {
