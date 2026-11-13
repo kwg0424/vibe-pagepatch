@@ -1,6 +1,7 @@
 // 데이터 비교 탭: 좌우 편집기(Ace)에 글을 넣으면 줄 · 글자 차이를 색으로 보여 주고, 덩어리마다 » « 로 반대쪽에 적용한다.
 // 저장하지 않는다 (탭을 닫으면 사라짐). 외부 파일은 끌어다 놓으면 놓은 쪽 편집기에 들어간다.
 import { diffLines, diffChars, hunkKind, summarize } from "./src/diff.js";
+import { formatText } from "./src/format.js";
 
 const $ = (s) => document.querySelector(s);
 const MAX_BYTES = 5 * 1024 * 1024; // 파일 하나의 최대 크기
@@ -57,8 +58,10 @@ export function initCompare({ theme, toast }) {
   const btns = $("#cmpBtns");
   const summary = $("#cmpSummary");
   const message = $("#cmpMessage");
-  const opts = () => ({ ignoreSpace: $("#cmpWs").checked, ignoreCase: $("#cmpCase").checked });
+  // 정리된 미리보기 중에는 두 옵션이 꺼져(비활성) 있고 비교에도 쓰지 않는다
+  const opts = () => ({ ignoreSpace: $("#cmpWs").checked && !$("#cmpWs").disabled, ignoreCase: $("#cmpCase").checked && !$("#cmpCase").disabled });
 
+  let fmtRaw = null; // 정리하기 전 글 (오른쪽이 정리된 보기일 때만 글, 아니면 null). 정리된 보기 중에는 비교하지 않는다
   const modeFixed = [false, false]; // 편집기별: 파일 확장자로 색을 정했는가
   // 확장자로 정하지 않은 편집기는 글 내용(JSON · XML)을 보고 색을 맞춘다
   function autoMode() {
@@ -102,6 +105,16 @@ export function initCompare({ theme, toast }) {
   function compare() {
     clearTimeout(timer);
     autoMode();
+    if (fmtRaw !== null) {
+      // 정리된 보기 중: 비교 기능을 끈다 (색 표시 · 연결 띠 · 적용 버튼 · 차이 개수 모두 없음)
+      hunks = [];
+      clearMarkers();
+      summary.textContent = "";
+      summary.classList.remove("same", "diff");
+      nav = -1;
+      paint();
+      return;
+    }
     const o = opts();
     const a = lines(L);
     const b = lines(R);
@@ -167,6 +180,22 @@ export function initCompare({ theme, toast }) {
     svg.replaceChildren();
     btns.replaceChildren();
     placeFlash(); // 반짝이는 중이면 스크롤을 따라가게 위치를 다시 맞춤
+    if (fmtRaw !== null) {
+      // 정리된 보기 중에는 적용 버튼을 숨기지 않고 회색으로 막아서 보여 준다
+      const row = document.createElement("div");
+      row.className = "cmp-apply";
+      row.style.top = "0px";
+      for (const [label, title] of [["«", "정리된 보기에서는 쓸 수 없습니다"], ["»", "정리된 보기에서는 쓸 수 없습니다"]]) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        b.title = title;
+        b.disabled = true;
+        row.append(b);
+      }
+      btns.append(row);
+      return;
+    }
     for (const [k, h] of hunks.entries()) {
       const kind = hunkKind(h);
       const yl0 = rowY(L, h.a0);
@@ -202,6 +231,10 @@ export function initCompare({ theme, toast }) {
   // 덩어리 적용: 한쪽의 줄을 반대쪽 같은 자리의 줄로 바꾼다 (지울 줄이 없는 쪽이면 끼워 넣음). 편집기의 실행 취소(Ctrl+Z)로 되돌릴 수 있다.
   function apply(h, dir, index) {
     const [src, dst] = dir === "lr" ? [L, R] : [R, L];
+    if (dst === R && fmtRaw !== null) {
+      say("정리된 보기(읽기 전용)에는 적용할 수 없습니다. 비교 기능으로 돌아간 뒤 적용하세요", true);
+      return;
+    }
     const [s0, s1] = dir === "lr" ? [h.a0, h.a1] : [h.b0, h.b1];
     const [d0, d1] = dir === "lr" ? [h.b0, h.b1] : [h.a0, h.a1];
     const next = [...lines(dst).slice(0, d0), ...lines(src).slice(s0, s1), ...lines(dst).slice(d1)];
@@ -334,6 +367,7 @@ export function initCompare({ theme, toast }) {
   }
 
   async function load(side, file) {
+    if (side === 1) leaveFmt(); // 정리된 보기 중에 파일을 놓으면 그 파일로 바꾼다
     const ed = eds[side];
     const text = await readText(file);
     setText(ed, text.replace(/\r\n?/g, "\n"));
@@ -389,6 +423,7 @@ export function initCompare({ theme, toast }) {
   $("#cmpNext").onclick = () => go(1);
   $("#cmpWs").onchange = $("#cmpCase").onchange = compare;
   $("#cmpSwap").onclick = () => {
+    leaveFmt(); // 정리된 보기는 원본으로 되돌린 뒤 바꾼다
     const [a, b] = [lines(L).join("\n"), lines(R).join("\n")];
     const names = [$("#cmpNameL").textContent, $("#cmpNameR").textContent];
     const modes = [L.session.getMode().$id, R.session.getMode().$id];
@@ -402,9 +437,87 @@ export function initCompare({ theme, toast }) {
     $("#cmpNameL").textContent = names[1];
     $("#cmpNameR").textContent = names[0];
   };
+  // 오른쪽(비교) 정리하기: 왼쪽 원본(소스)을 파일 보기의 '정리하기'처럼 JSON · XML 들여쓰기로 정리해서, 오른쪽 입력칸 대신 미리보기로 보여 준다.
+  // 읽기 전용이고, 다시 누르면(비교 기능) 오른쪽에 있던 글이 그대로 돌아온다. 왼쪽을 고치면 미리보기도 따라 바뀐다
+  // 읽기 전용으로 바꾼다. Ace 는 읽기 전용 칸에서 글자를 치면 "Editing is disabled" 풍선을 띄우는데, 그 알림 연결만 빼서 풍선 없이 조용히 막는다
+  const setReadOnly = (on) => {
+    $("#cmpWs").disabled = $("#cmpCase").disabled = $("#cmpPrev").disabled = $("#cmpNext").disabled = $("#cmpSwap").disabled = on; // 공백 · 대소문자 무시, 이전 · 다음, 좌우 바꾸기(⇄)는 정리된 미리보기 중에는 쓸 수 없다
+    R.setReadOnly(on);
+    const cb = R.$readOnlyCallback;
+    if (on && cb) {
+      R.textInput.getElement().removeEventListener("keydown", cb);
+      R.commands.off("exec", cb);
+      R.commands.off("commandUnavailable", cb);
+    }
+  };
+  let fmtName = "";
+  // 정리하기를 못 하는 이유는 위쪽 메시지 대신 정리하기 버튼 왼쪽에 보인다 (잠시 뒤 사라짐)
+  const fmtMsg = $("#cmpFmtMsg");
+  let fmtMsgTimer;
+  const fmtSay = (text) => {
+    clearTimeout(fmtMsgTimer);
+    fmtMsg.textContent = fmtMsg.title = text || "";
+    fmtMsg.hidden = !text;
+    if (text) fmtMsgTimer = setTimeout(() => fmtSay(""), 6000);
+  };
+  // 칸 제목: "정리 JSON" — 형식 이름은 파일 보기 윗줄처럼 초록색으로
+  const fmtTitle = (kind) => {
+    const ext = document.createElement("span");
+    ext.className = "ext";
+    ext.textContent = kind;
+    $("#cmpNameR").replaceChildren("정리 ", ext);
+  };
+  const fmtBtn = $("#cmpFmtR");
+  function leaveFmt() {
+    if (fmtRaw === null) return;
+    const raw = fmtRaw;
+    fmtRaw = null;
+    setReadOnly(false);
+    setText(R, raw);
+    $("#cmpNameR").textContent = fmtName;
+    fmtBtn.textContent = "정리하기";
+    autoMode();
+    compare(); // 비교를 다시 켠다
+  }
+  // 정리된 미리보기가 떠 있는 동안 왼쪽을 고치면 미리보기도 다시 만든다 (틀린 글이면 이유만 보여 주고 이전 미리보기를 둔다)
+  let fmtTimer;
+  L.on("change", () => {
+    if (fmtRaw === null) return;
+    clearTimeout(fmtTimer);
+    fmtTimer = setTimeout(() => {
+      if (fmtRaw === null) return;
+      const res = formatText(lines(L).join("\n"));
+      if (!res.ok) return fmtSay(res.reason);
+      fmtSay("");
+      setText(R, res.text);
+      fmtTitle(res.kind);
+      autoMode();
+    }, 300);
+  });
+  fmtBtn.onclick = () => {
+    if (fmtRaw !== null) {
+      leaveFmt();
+      return;
+    }
+    const res = formatText(lines(L).join("\n"));
+    if (!res.ok) {
+      fmtSay(res.reason === "정리할 내용이 없습니다" ? "왼쪽 원본에 정리할 내용을 넣으세요" : res.reason);
+      return;
+    }
+    fmtSay("");
+    fmtRaw = lines(R).join("\n");
+    fmtName = $("#cmpNameR").textContent;
+    setText(R, res.text);
+    setReadOnly(true);
+    fmtTitle(res.kind);
+    fmtBtn.textContent = "비교 기능";
+    autoMode();
+    compare(); // 비교를 끈다 (표시를 지운다)
+  };
   for (const [side, ed] of eds.entries()) {
     const sfx = side ? "R" : "L";
     $(`#cmpClear${sfx}`).onclick = () => {
+      if (side) leaveFmt();
       setText(ed, "");
       modeFixed[side] = false;
       ed.session.setMode(TEXT);

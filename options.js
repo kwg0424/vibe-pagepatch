@@ -993,6 +993,7 @@ function renderBridge() {
     if (st.claude && st.outdated) [text, kind] = [`${text} · 연결 프로그램이 예전 버전입니다`, "warn"]; // 노란색
   }
   setDesc($("#bState"), text, kind);
+  $("#bTip").hidden = !(on && st.state === "connected" && st.claude); // 연결되고 claude 를 찾았을 때만 사용 문구를 보여 준다
   const outdated = on && st.state === "connected" && st.outdated;
   $("#bInstallWhy").textContent = outdated ? "연결 프로그램이 예전 버전입니다. 같은 명령으로 다시 등록하세요" : "처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다";
   $("#bInstall").hidden = !(on && (st.state === "not-installed" || outdated));
@@ -1144,6 +1145,14 @@ $("#bEnabled").onchange = async (e) => {
 };
 $("#bEval").onchange = (e) => send("bridge:config", { patch: { allowEval: e.target.checked } });
 $("#bSetupCmd").textContent = BRIDGE_SETUP;
+$("#bCopyTip").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($("#bTipText").textContent);
+    toast("문구를 복사했습니다");
+  } catch {
+    toast("복사하지 못했습니다");
+  }
+};
 $("#bCopySetup").onclick = async () => {
   await navigator.clipboard.writeText(BRIDGE_SETUP);
   toast("복사했습니다. PowerShell 이나 cmd 에 붙여 넣고 Enter");

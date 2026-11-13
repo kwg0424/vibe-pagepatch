@@ -475,6 +475,16 @@ test("검색 이동: 사용 안 함(off) 검색어는 규칙 · 대비책에서 
   assert.equal("off" in normalizeJump({ id: "x", url: "https://x.test/", off: false, updated: 1 }), false);
 });
 
+// ── 데이터 비교: 정리 ──
+test("데이터 비교 정리: JSON 은 들여쓰기, 틀린 글 · 다른 형식은 이유를 돌려준다", async () => {
+  const { formatText } = await import("../src/format.js");
+  const a = formatText('{"a":1,"b":[1,2],"c":{"d":"한글"}}');
+  assert.ok(a.ok && a.kind === "JSON" && a.text === '{\n  "a": 1,\n  "b": [\n    1,\n    2\n  ],\n  "c": {\n    "d": "한글"\n  }\n}');
+  assert.ok(formatText("[1,2").reason.includes("JSON") && !formatText("[1,2").ok);
+  assert.ok(!formatText("a,b\n1,2").ok && formatText("a,b\n1,2").reason.includes("JSON · XML"));
+  assert.ok(!formatText("   ").ok);
+});
+
 // ── 데이터 비교 ──
 test("데이터 비교: 줄 단위 추가 · 삭제 · 변경 덩어리", () => {
   const d = (a, b, o) => diffLines(a.split("\n"), b.split("\n"), o);

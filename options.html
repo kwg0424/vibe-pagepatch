@@ -151,7 +151,6 @@
       <nav class="pager" id="jPager" hidden></nav>
       <p id="jEmpty" class="desc" hidden>등록된 검색어가 없습니다.</p>
       <p class="desc">검색어는 띄어쓰기를 빼고 저장합니다 (구글 지도 → 구글지도). 사용 중인 검색어가 위에, 쓰지 않는 검색어(회색)가 아래에 가나다순으로 나옵니다. 행을 누르면 위 입력란에 채워져 고칠 수 있고, 다른 주소에 있던 검색어를 넣으면 이 주소로 옮겨집니다. 목록은 규칙과 같이 동기화됩니다.</p>
-      <p class="desc">검색어가 전에 가 본 주소로 자동완성되면 Edge 가 그 주소로 가 버립니다 → 자동완성 부분을 Delete 로 지우거나, 목록에서 Shift+Delete 로 지운 뒤 Enter.</p>
     </main>
   </div>
 
@@ -213,7 +212,7 @@
       <div class="cmp-heads">
         <div class="cmp-head"><b id="cmpNameL">원본</b><span class="cmp-btns"><button type="button" class="btn small" id="cmpCopyL">복사</button><button type="button" class="btn small danger" id="cmpClearL">지우기</button></span></div>
         <div class="cmp-swap"><button type="button" class="btn small" id="cmpSwap" title="전환: 왼쪽과 오른쪽 내용을 서로 바꿉니다" aria-label="좌우 전환">⇄</button></div>
-        <div class="cmp-head"><b id="cmpNameR">비교</b><span class="cmp-btns"><button type="button" class="btn small" id="cmpCopyR">복사</button><button type="button" class="btn small danger" id="cmpClearR">지우기</button></span></div>
+        <div class="cmp-head"><b id="cmpNameR">비교</b><span class="cmp-btns"><span class="cmp-fmt-msg" id="cmpFmtMsg" hidden></span><button type="button" class="btn small" id="cmpFmtR" title="왼쪽 원본을 파일 보기의 정리하기처럼 JSON · XML 들여쓰기로 정리해서 오른쪽에 미리보기로 보여 줍니다 (읽기 전용, 다시 누르면 비교 기능으로 돌아갑니다)">정리하기</button><button type="button" class="btn small" id="cmpCopyR">복사</button><button type="button" class="btn small danger" id="cmpClearR">지우기</button></span></div>
       </div>
       <div class="cmp-body">
         <div class="ace" id="aceCmpL"></div>
@@ -269,6 +268,11 @@
           <input type="checkbox" id="bEnabled">
         </label>
         <p class="desc" id="bState" hidden></p>
+        <div id="bTip" class="desc" hidden>
+          터미널(cmd)의 Claude Code 에서도 이렇게 말하면 지금 Edge 에 열려 있는 탭을 PagePatch 로 제어합니다
+          <pre class="code" id="bTipText">PagePatch 도구로 지금 Edge에서 열려 있는 탭을 제어해. 먼저 page_info로 현재 탭을 확인하고, page_outline이나 page_query로 화면 구조를 본 다음 필요하면 page_eval로 값을 읽어. 같은 사이트에서는 상대경로 fetch로 조회해. 읽기만 하고 쓰기 API는 호출하지 마.</pre>
+          <div class="buttons"><button type="button" id="bCopyTip">문구 복사</button></div>
+        </div>
         <div id="bInstall" class="desc" hidden>
           <span id="bInstallWhy">처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다</span> (Node.js 22 이상, Claude Code 필요).
           아래 명령을 PowerShell 이나 명령 프롬프트(cmd)에 붙여 넣으세요. 연결 프로그램은 이 확장 안에 들어 있는 파일을 씁니다 (인터넷에서 받지 않음).

@@ -241,6 +241,13 @@ dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
 #cmpSummary.diff { color: var(--danger); font-weight: 700; }
 .cmp-heads, .cmp-body { display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); }
 .cmp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+/* 정리된 미리보기 중에는 공백 · 대소문자 무시를 회색으로 막는다 */
+.cmp-bar .check:has(input:disabled) { color: var(--muted); opacity: .45; cursor: not-allowed; }
+.cmp-bar .check input:disabled { cursor: not-allowed; }
+/* 정리하기를 못 할 때의 이유: 정리하기 버튼 왼쪽에 빨간 글씨로 */
+.cmp-fmt-msg { align-self: center; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--danger); font-size: 12px; }
+.cmp-fmt-msg[hidden] { display: none; }
+.cmp-head .ext { color: var(--ok); font-weight: 600; } /* 정리 (JSON) 의 형식 이름 */
 .cmp-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmp-btns { display: flex; gap: 6px; flex: none; }
 .cmp-swap { display: flex; align-items: center; justify-content: center; }
@@ -260,7 +267,8 @@ dialog p { margin: 0 0 14px; font-size: 14px; white-space: pre-line; }
 #cmpBtns { position: absolute; inset: 0; }
 .cmp-apply { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; }
 .cmp-apply button { width: 28px; height: 22px; padding: 0; line-height: 1; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--text); font-weight: 700; cursor: pointer; }
-.cmp-apply button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cmp-apply button:disabled, .cmp-swap .btn:disabled { color: var(--muted); background: var(--bg-soft); border-color: var(--line); opacity: .45; cursor: not-allowed; } /* 정리된 보기 중 « » ⇄ 는 회색으로 막음 */
+.cmp-apply button:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
 /* Ace 안의 차이 표시 (줄 배경 · 바뀐 글자) */
 .ace_marker-layer .cmp-add, .ace_marker-layer .cmp-del, .ace_marker-layer .cmp-mod, .ace_marker-layer .cmp-char-mod { position: absolute; }
 /* 이동한 차이의 반짝임: 편집기 위에 얹는 요소 (compare.js flash). 줄이 있는 쪽은 상자, 줄이 없는 쪽은 끼워질 자리의 굵은 선 */
