@@ -468,6 +468,13 @@ export function initCompare({ theme, toast }) {
     $("#cmpNameR").replaceChildren("정리 ", ext);
   };
   const fmtBtn = $("#cmpFmtR");
+  // 단축키 Alt+X: 정리하기 ↔ 비교 기능. 입력칸에서 글자로 쳐지지 않게 Alt 와 같이 누른다 (데이터 비교 탭이 보일 때만)
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyX" || !e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.repeat) return;
+    if ($("#compare").hidden) return;
+    e.preventDefault();
+    fmtBtn.click();
+  });
   function leaveFmt() {
     if (fmtRaw === null) return;
     const raw = fmtRaw;
@@ -475,7 +482,7 @@ export function initCompare({ theme, toast }) {
     setReadOnly(false);
     setText(R, raw);
     $("#cmpNameR").textContent = fmtName;
-    fmtBtn.textContent = "정리하기";
+    fmtBtn.textContent = "정리하기 (Alt+X)";
     autoMode();
     compare(); // 비교를 다시 켠다
   }
@@ -510,7 +517,7 @@ export function initCompare({ theme, toast }) {
     setText(R, res.text);
     setReadOnly(true);
     fmtTitle(res.kind);
-    fmtBtn.textContent = "비교 기능";
+    fmtBtn.textContent = "비교 기능 (Alt+X)";
     autoMode();
     compare(); // 비교를 끈다 (표시를 지운다)
   };
