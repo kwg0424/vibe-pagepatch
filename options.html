@@ -268,19 +268,15 @@
           <input type="checkbox" id="bEnabled">
         </label>
         <p class="desc" id="bState" hidden></p>
-        <div id="bTip" class="desc" hidden>
-          터미널(cmd)의 Claude Code 에서도 이렇게 말하면 지금 Edge 에 열려 있는 탭을 PagePatch 로 제어합니다
-          <pre class="code" id="bTipText">PagePatch 도구로 지금 Edge에서 열려 있는 탭을 제어해. 먼저 page_info로 현재 탭을 확인하고, page_outline이나 page_query로 화면 구조를 본 다음 필요하면 page_eval로 값을 읽어. 같은 사이트에서는 상대경로 fetch로 조회해. 읽기만 하고 쓰기 API는 호출하지 마.</pre>
-          <div class="buttons"><button type="button" id="bCopyTip">문구 복사</button></div>
-        </div>
+        <p id="bTip" class="desc" hidden>터미널(cmd)의 Claude Code 에서도 "<b>지금 열려 있는 탭을 제어해</b>"라고 말하면 PagePatch 도구로 읽고 제어합니다</p>
         <div id="bInstall" class="desc" hidden>
           <span id="bInstallWhy">처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다</span> (Node.js 22 이상, Claude Code 필요).
-          아래 명령을 PowerShell 이나 명령 프롬프트(cmd)에 붙여 넣으세요. 연결 프로그램은 이 확장 안에 들어 있는 파일을 씁니다 (인터넷에서 받지 않음).
+          아래 명령을 PowerShell 이나 명령 프롬프트(cmd)에 붙여 넣으세요. 연결 프로그램은 이 확장 안에 들어 있는 파일을 씁니다.
           <pre class="code" id="bSetupCmd"></pre>
-          <div class="buttons"><button type="button" id="bCopySetup">복사</button><button type="button" id="bRefresh" class="accent" title="등록 명령을 실행한 뒤 눌러 연결 프로그램을 다시 연결하고 버전을 확인합니다">새로고침</button></div>
           등록한 뒤 <b>다시 확인</b>을 누르세요.
+          <div class="buttons" id="bInstallBtns"><button type="button" id="bCopySetup">복사</button></div>
         </div>
-        <div class="buttons" id="bRetryWrap" hidden><button type="button" id="bRetry">다시 확인</button></div>
+        <div class="buttons" id="bRetryWrap" hidden><button type="button" id="bRetry" class="accent" title="연결을 끊고 다시 연결한 뒤 연결 프로그램 버전을 확인합니다 (등록 명령을 실행한 뒤, 또는 연결이 안 될 때)">다시 확인</button></div>
         <label class="row" id="bEvalRow" hidden>
           <span>
             <b>페이지에서 JS 실행 허용</b>

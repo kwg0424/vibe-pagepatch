@@ -9,7 +9,9 @@ export function setupScript(id, arg = "") {
   return [
     "$ErrorActionPreference = 'Stop'",
     `$f = Get-ChildItem "$env:LOCALAPPDATA\\Microsoft\\Edge*\\User Data\\*\\Extensions\\${id}\\*\\bridge\\install.ps1" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1`,
-    "if (-not $f) { throw 'PagePatch 확장 폴더를 찾지 못했습니다. 개발자 모드로 로드했다면 소스 폴더의 bridge\\install.ps1 을 실행하세요.' }",
+    // 개발자 모드(압축 풀린 폴더)로 로드했으면 Edge 확장 폴더에 없다 → Edge 설정 파일에 적힌 그 폴더 경로에서 찾는다
+    `if (-not $f) { foreach ($p in @(Get-ChildItem "$env:LOCALAPPDATA\\Microsoft\\Edge*\\User Data\\*\\Secure Preferences","$env:LOCALAPPDATA\\Microsoft\\Edge*\\User Data\\*\\Preferences" -ErrorAction SilentlyContinue)) { try { $e = (Get-Content -Raw -Encoding UTF8 $p.FullName | ConvertFrom-Json).extensions.settings.'${id}'; if ($e.path) { $c = Join-Path $e.path 'bridge\\install.ps1'; if (Test-Path $c) { $f = Get-Item $c; break } } } catch {} } }`,
+    "if (-not $f) { throw 'PagePatch 확장 폴더를 찾지 못했습니다. 소스 폴더의 bridge\\install.ps1 을 직접 실행하세요.' }",
     `& powershell -NoProfile -ExecutionPolicy Bypass -File $f.FullName ${arg}`.trim(),
   ].join("\n");
 }

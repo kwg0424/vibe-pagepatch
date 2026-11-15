@@ -121,6 +121,8 @@ export const TAB_TOOLS = new Set(TOOLS.filter((t) => "tabId" in t.inputSchema.pr
 
 export const INSTRUCTIONS =
   "PagePatch: Edge 에서 사이트마다 사용자 CSS/JS 규칙을 적용하는 확장. 이 도구로 사용자가 보고 있는 페이지를 살펴보고 규칙을 만들고 고친다. " +
+  "사용자가 \"열려 있는 탭 · 지금 화면 · 이 페이지\"를 보거나 제어하라고 하면 이 도구를 쓴다: 먼저 page_info 로 현재 탭을 확인하고, page_outline · page_query 로 화면 구조를 본 다음, 필요할 때만 page_eval 로 값을 읽는다. " +
+  "로그인된 사이트의 데이터 조회는 같은 출처의 상대경로 fetch 를 page_eval 에서 한다. 조회(읽기)만 하고, 사용자가 명시적으로 시키지 않은 쓰기 · 변경 · 삭제 API 는 호출하지 않는다. " +
   "순서: page_info → page_outline/page_query 로 셀렉터 찾기 → css_preview 로 보여 주기(필요하면 page_screenshot) → 사용자가 좋다고 하면 rule_save → preview_clear. " +
   "같은 사이트 규칙이 있으면 새로 만들지 말고 그 규칙에 더한다(rule_get 으로 지금 내용 먼저). CSS 로 되는 일은 JS 로 하지 않는다. " +
   "규칙의 notes(AI 규칙)는 사용자가 쓴 화면 수정 의도다. 규칙이 안 먹으면(사이트 UI 가 바뀜) notes 의 의도대로 지금 화면에서 셀렉터를 다시 찾아 CSS·JS 를 고친다. " +

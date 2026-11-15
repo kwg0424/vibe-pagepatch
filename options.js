@@ -997,7 +997,12 @@ function renderBridge() {
   const outdated = on && st.state === "connected" && st.outdated;
   $("#bInstallWhy").textContent = outdated ? "연결 프로그램이 예전 버전입니다. 같은 명령으로 다시 등록하세요" : "처음 한 번 이 PC 에 연결 프로그램을 등록해야 합니다";
   $("#bInstall").hidden = !(on && (st.state === "not-installed" || outdated));
-  $("#bRetryWrap").hidden = !on || st.state === "connected" || st.state === "connecting";
+  // 다시 연결: 연결이 안 됐거나(연결 중 제외) 연결 프로그램이 예전 버전일 때
+  $("#bRetryWrap").hidden = !on || ((st.state === "connected" || st.state === "connecting") && !outdated);
+  // 등록 명령 상자가 보이면 다시 확인 버튼을 복사 버튼과 같은 줄(오른쪽 끝)에, 아니면 따로 오른쪽 끝에 둔다
+  const inBox = !$("#bInstall").hidden;
+  (inBox ? $("#bInstallBtns") : $("#bRetryWrap")).append($("#bRetry"));
+  if (inBox) $("#bRetryWrap").hidden = true;
   $("#bEvalRow").hidden = !(on && st.state === "connected");
   renderHints();
 }
@@ -1145,26 +1150,15 @@ $("#bEnabled").onchange = async (e) => {
 };
 $("#bEval").onchange = (e) => send("bridge:config", { patch: { allowEval: e.target.checked } });
 $("#bSetupCmd").textContent = BRIDGE_SETUP;
-$("#bCopyTip").onclick = async () => {
-  try {
-    await navigator.clipboard.writeText($("#bTipText").textContent);
-    toast("문구를 복사했습니다");
-  } catch {
-    toast("복사하지 못했습니다");
-  }
-};
 $("#bCopySetup").onclick = async () => {
   await navigator.clipboard.writeText(BRIDGE_SETUP);
   toast("복사했습니다. PowerShell 이나 cmd 에 붙여 넣고 Enter");
 };
-$("#bRefresh").onclick = async () => {
+// 다시 연결 (예전의 '새로고침' · '다시 확인' 을 하나로): 연결을 끊고 다시 붙인 뒤 상태 · 버전을 다시 읽는다
+$("#bRetry").onclick = async () => {
   await send("bridge:reconnect");
   toast("다시 연결하는 중…");
-  setTimeout(reload, 1200); // 연결 프로그램이 응답한 뒤 상태 · 버전을 다시 읽는다
-};
-$("#bRetry").onclick = async () => {
-  await send("bridge:retry");
-  setTimeout(reload, 800);
+  setTimeout(reload, 1200);
 };
 
 $("#badge").onchange = (e) => send("settings", { patch: { hideBadge: !e.target.checked } });
